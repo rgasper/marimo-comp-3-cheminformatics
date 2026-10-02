@@ -1,0 +1,50 @@
+[
+  {
+    "tag": "mu_vs_kappa_2_mol1_mu-opioid",
+    "pair": "mu_vs_kappa",
+    "index": 2,
+    "mol_id": "mol1",
+    "smiles": "Oc1ccc2c(c1)[C@@]13CCCC[C@H]1[C@@H](C2)N(CC1CC1)CC3",
+    "target": "mu-opioid",
+    "cif_file": "mu_vs_kappa_2_mol1_mu-opioid.cif",
+    "binding_confidence": 0.9906646013259888,
+    "structure_confidence": 0.8435549736022949,
+    "ligand_iptm": 0.9897838830947876
+  },
+  {
+    "tag": "mu_vs_kappa_2_mol1_kappa-opioid",
+    "pair": "mu_vs_kappa",
+    "index": 2,
+    "mol_id": "mol1",
+    "smiles": "Oc1ccc2c(c1)[C@@]13CCCC[C@H]1[C@@H](C2)N(CC1CC1)CC3",
+    "target": "kappa-opioid",
+    "cif_file": "mu_vs_kappa_2_mol1_kappa-opioid.cif",
+    "binding_confidence": 0.9742305874824524,
+    "structure_confidence": 0.8370210528373718,
+    "ligand_iptm": 0.9895395636558533
+  },
+  {
+    "tag": "mu_vs_kappa_2_mol2_mu-opioid",
+    "pair": "mu_vs_kappa",
+    "index": 2,
+    "mol_id": "mol2",
+    "smiles": "Oc1ccc2c(c1)[C@@]13CCNC[C@H]1[C@@H](C2)N(CC1CC1)CC3",
+    "target": "mu-opioid",
+    "cif_file": "mu_vs_kappa_2_mol2_mu-opioid.cif",
+    "binding_confidence": 0.9664518237113953,
+    "structure_confidence": 0.8186506628990173,
+    "ligand_iptm": 0.971541166305542
+  },
+  {
+    "tag": "mu_vs_kappa_2_mol2_kappa-opioid",
+    "pair": "mu_vs_kappa",
+    "index": 2,
+    "mol_id": "mol2",
+    "smiles": "Oc1ccc2c(c1)[C@@]13CCNC[C@H]1[C@@H](C2)N(CC1CC1)CC3",
+    "target": "kappa-opioid",
+    "cif_file": "mu_vs_kappa_2_mol2_kappa-opioid.cif",
+    "binding_confidence": 0.9333796501159668,
+    "structure_confidence": 0.7989270091056824,
+    "ligand_iptm": 0.9843723177909851
+  }
+]

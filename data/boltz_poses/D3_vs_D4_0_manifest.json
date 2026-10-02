@@ -1,0 +1,50 @@
+[
+  {
+    "tag": "D3_vs_D4_0_mol1_DopamineD3",
+    "pair": "D3_vs_D4",
+    "index": 0,
+    "mol_id": "mol1",
+    "smiles": "CCOc1ccccc1N1CCN(Cc2c[nH]c3ccccc23)CC1",
+    "target": "Dopamine D3",
+    "cif_file": "D3_vs_D4_0_mol1_DopamineD3.cif",
+    "binding_confidence": 0.8708515167236328,
+    "structure_confidence": 0.8863615393638611,
+    "ligand_iptm": 0.9849402904510498
+  },
+  {
+    "tag": "D3_vs_D4_0_mol1_DopamineD4",
+    "pair": "D3_vs_D4",
+    "index": 0,
+    "mol_id": "mol1",
+    "smiles": "CCOc1ccccc1N1CCN(Cc2c[nH]c3ccccc23)CC1",
+    "target": "Dopamine D4",
+    "cif_file": "D3_vs_D4_0_mol1_DopamineD4.cif",
+    "binding_confidence": 0.9832209348678589,
+    "structure_confidence": 0.7969293594360352,
+    "ligand_iptm": 0.9893746376037598
+  },
+  {
+    "tag": "D3_vs_D4_0_mol2_DopamineD3",
+    "pair": "D3_vs_D4",
+    "index": 0,
+    "mol_id": "mol2",
+    "smiles": "c1ccc(N2CCN(Cc3c[nH]c4ccccc34)CC2)cc1",
+    "target": "Dopamine D3",
+    "cif_file": "D3_vs_D4_0_mol2_DopamineD3.cif",
+    "binding_confidence": 0.7910459041595459,
+    "structure_confidence": 0.8915867805480957,
+    "ligand_iptm": 0.9835044741630554
+  },
+  {
+    "tag": "D3_vs_D4_0_mol2_DopamineD4",
+    "pair": "D3_vs_D4",
+    "index": 0,
+    "mol_id": "mol2",
+    "smiles": "c1ccc(N2CCN(Cc3c[nH]c4ccccc34)CC2)cc1",
+    "target": "Dopamine D4",
+    "cif_file": "D3_vs_D4_0_mol2_DopamineD4.cif",
+    "binding_confidence": 0.8508265018463135,
+    "structure_confidence": 0.7903655171394348,
+    "ligand_iptm": 0.969260036945343
+  }
+]

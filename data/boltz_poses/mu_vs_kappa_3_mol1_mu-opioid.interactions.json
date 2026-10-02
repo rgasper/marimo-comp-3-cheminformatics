@@ -1,0 +1,107 @@
+[
+  {
+    "type": "saltbridge",
+    "residue": "ASP149",
+    "distance": 3.02,
+    "lig_xyz": [
+      6.123,
+      -7.469,
+      -2.35
+    ],
+    "prot_xyz": [
+      5.427,
+      -6.525,
+      0.432
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL145",
+    "distance": 3.36,
+    "lig_xyz": [
+      10.603,
+      -8.625,
+      1.723
+    ],
+    "prot_xyz": [
+      10.976,
+      -7.133,
+      4.707
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR150",
+    "distance": 3.93,
+    "lig_xyz": [
+      2.713,
+      -10.478,
+      -3.438
+    ],
+    "prot_xyz": [
+      1.655,
+      -12.14,
+      -0.042
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP295",
+    "distance": 3.71,
+    "lig_xyz": [
+      4.949,
+      -4.978,
+      -4.683
+    ],
+    "prot_xyz": [
+      1.582,
+      -4.013,
+      -3.452
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "ILE298",
+    "distance": 3.96,
+    "lig_xyz": [
+      4.949,
+      -4.978,
+      -4.683
+    ],
+    "prot_xyz": [
+      3.612,
+      -6.334,
+      -8.157
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "ILE146",
+    "distance": 3.61,
+    "lig_xyz": [
+      11.396,
+      -9.571,
+      1.076
+    ],
+    "prot_xyz": [
+      9.292,
+      -11.772,
+      3.024
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR328",
+    "distance": 3.28,
+    "lig_xyz": [
+      5.909,
+      -4.015,
+      -4.06
+    ],
+    "prot_xyz": [
+      8.447,
+      -2.903,
+      -2.305
+    ]
+  }
+]

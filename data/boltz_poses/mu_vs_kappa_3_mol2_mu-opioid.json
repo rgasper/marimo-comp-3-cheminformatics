@@ -1,0 +1,12 @@
+{
+  "tag": "mu_vs_kappa_3_mol2_mu-opioid",
+  "pair": "mu_vs_kappa",
+  "index": 3,
+  "mol_id": "mol2",
+  "smiles": "Oc1cccc(CCN(CCc2ccccc2)CC2CCC2)c1",
+  "target": "mu-opioid",
+  "cif_file": "mu_vs_kappa_3_mol2_mu-opioid.cif",
+  "binding_confidence": 0.620246410369873,
+  "structure_confidence": 0.8121787309646606,
+  "ligand_iptm": 0.9518624544143677
+}

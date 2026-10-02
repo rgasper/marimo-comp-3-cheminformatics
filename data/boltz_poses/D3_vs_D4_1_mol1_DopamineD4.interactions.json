@@ -1,0 +1,167 @@
+[
+  {
+    "type": "hbond",
+    "residue": "SER94",
+    "distance": 3.34,
+    "lig_xyz": [
+      8.876,
+      21.691,
+      6.877
+    ],
+    "prot_xyz": [
+      11.598,
+      20.981,
+      8.67
+    ]
+  },
+  {
+    "type": "hbond",
+    "residue": "TYR390",
+    "distance": 3.82,
+    "lig_xyz": [
+      3.372,
+      16.184,
+      9.648
+    ],
+    "prot_xyz": [
+      5.907,
+      14.814,
+      7.144
+    ]
+  },
+  {
+    "type": "hbond",
+    "residue": "ASP115",
+    "distance": 4.02,
+    "lig_xyz": [
+      -0.369,
+      13.825,
+      9.307
+    ],
+    "prot_xyz": [
+      2.557,
+      14.432,
+      6.615
+    ]
+  },
+  {
+    "type": "saltbridge",
+    "residue": "ASP115",
+    "distance": 3.22,
+    "lig_xyz": [
+      3.372,
+      16.184,
+      9.648
+    ],
+    "prot_xyz": [
+      3.412,
+      15.107,
+      6.6135
+    ]
+  },
+  {
+    "type": "pistack",
+    "residue": "PHE91",
+    "distance": 5.29,
+    "lig_xyz": [
+      7.044833333333334,
+      19.93,
+      7.867833333333334
+    ],
+    "prot_xyz": [
+      10.465333333333334,
+      16.020833333333332,
+      8.844833333333334
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE91",
+    "distance": 3.81,
+    "lig_xyz": [
+      7.388,
+      19.865,
+      6.53
+    ],
+    "prot_xyz": [
+      10.085,
+      17.192,
+      6.216
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL116",
+    "distance": 3.63,
+    "lig_xyz": [
+      -2.253,
+      14.919,
+      10.397
+    ],
+    "prot_xyz": [
+      -2.264,
+      17.184,
+      7.56
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "LEU187",
+    "distance": 3.97,
+    "lig_xyz": [
+      0.708,
+      17.316,
+      12.258
+    ],
+    "prot_xyz": [
+      -2.122,
+      19.589,
+      10.651
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP359",
+    "distance": 3.27,
+    "lig_xyz": [
+      1.921,
+      13.116,
+      8.696
+    ],
+    "prot_xyz": [
+      3.497,
+      10.307,
+      9.284
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE362",
+    "distance": 3.51,
+    "lig_xyz": [
+      0.708,
+      17.316,
+      12.258
+    ],
+    "prot_xyz": [
+      2.44,
+      14.37,
+      13.055
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE363",
+    "distance": 3.9,
+    "lig_xyz": [
+      -2.253,
+      14.919,
+      10.397
+    ],
+    "prot_xyz": [
+      -2.834,
+      11.678,
+      12.478
+    ]
+  }
+]

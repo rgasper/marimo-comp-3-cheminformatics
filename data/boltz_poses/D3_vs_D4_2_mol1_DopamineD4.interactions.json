@@ -1,0 +1,137 @@
+[
+  {
+    "type": "saltbridge",
+    "residue": "ASP115",
+    "distance": 3.49,
+    "lig_xyz": [
+      -3.425,
+      -11.159,
+      -13.665
+    ],
+    "prot_xyz": [
+      -1.5910000000000002,
+      -8.2905,
+      -12.8975
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP101",
+    "distance": 3.84,
+    "lig_xyz": [
+      -5.07,
+      -9.895,
+      -18.994
+    ],
+    "prot_xyz": [
+      -5.953,
+      -9.234,
+      -22.674
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "LEU111",
+    "distance": 3.89,
+    "lig_xyz": [
+      -4.703,
+      -8.559,
+      -18.851
+    ],
+    "prot_xyz": [
+      -2.767,
+      -6.701,
+      -21.669
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "LEU187",
+    "distance": 3.54,
+    "lig_xyz": [
+      0.597,
+      -13.588,
+      -10.96
+    ],
+    "prot_xyz": [
+      2.34,
+      -14.899,
+      -13.742
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL87",
+    "distance": 3.8,
+    "lig_xyz": [
+      -4.389,
+      -8.039,
+      -17.603
+    ],
+    "prot_xyz": [
+      -2.916,
+      -5.495,
+      -15.198
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE91",
+    "distance": 3.52,
+    "lig_xyz": [
+      -4.442,
+      -8.841,
+      -16.465
+    ],
+    "prot_xyz": [
+      -7.468,
+      -7.092,
+      -16.07
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE91",
+    "distance": 3.51,
+    "lig_xyz": [
+      -4.958,
+      -11.224,
+      -15.674
+    ],
+    "prot_xyz": [
+      -7.877,
+      -9.363,
+      -15.073
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL116",
+    "distance": 3.56,
+    "lig_xyz": [
+      1.63,
+      -11.122,
+      -10.19
+    ],
+    "prot_xyz": [
+      3.701,
+      -11.384,
+      -13.073
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "PHE362",
+    "distance": 3.58,
+    "lig_xyz": [
+      -0.048,
+      -12.414,
+      -11.355
+    ],
+    "prot_xyz": [
+      -2.547,
+      -13.402,
+      -8.984
+    ]
+  }
+]

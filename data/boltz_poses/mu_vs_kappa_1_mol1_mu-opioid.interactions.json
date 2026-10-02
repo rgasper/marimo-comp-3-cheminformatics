@@ -1,0 +1,182 @@
+[
+  {
+    "type": "hbond",
+    "residue": "TYR150",
+    "distance": 4.08,
+    "lig_xyz": [
+      7.672,
+      5.05,
+      9.118
+    ],
+    "prot_xyz": [
+      5.035,
+      8.038,
+      8.228
+    ]
+  },
+  {
+    "type": "saltbridge",
+    "residue": "ASP149",
+    "distance": 3.0,
+    "lig_xyz": [
+      4.473,
+      3.955,
+      3.443
+    ],
+    "prot_xyz": [
+      5.2915,
+      6.1575,
+      1.584
+    ]
+  },
+  {
+    "type": "pication",
+    "residue": "LYS235",
+    "distance": 4.31,
+    "lig_xyz": [
+      9.124666666666666,
+      6.4195,
+      12.3305
+    ],
+    "prot_xyz": [
+      7.66,
+      4.309,
+      15.797
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR150",
+    "distance": 3.65,
+    "lig_xyz": [
+      4.483,
+      5.565,
+      5.371
+    ],
+    "prot_xyz": [
+      4.747,
+      9.122,
+      6.13
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "LEU221",
+    "distance": 3.87,
+    "lig_xyz": [
+      6.849,
+      7.49,
+      10.919
+    ],
+    "prot_xyz": [
+      6.985,
+      10.813,
+      8.946
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL238",
+    "distance": 3.6,
+    "lig_xyz": [
+      2.495,
+      2.318,
+      8.587
+    ],
+    "prot_xyz": [
+      -0.341,
+      4.521,
+      8.9
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP295",
+    "distance": 3.64,
+    "lig_xyz": [
+      3.44,
+      1.653,
+      0.513
+    ],
+    "prot_xyz": [
+      0.103,
+      0.861,
+      1.725
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL302",
+    "distance": 3.89,
+    "lig_xyz": [
+      2.495,
+      2.318,
+      8.587
+    ],
+    "prot_xyz": [
+      5.395,
+      0.648,
+      10.579
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP320",
+    "distance": 3.82,
+    "lig_xyz": [
+      7.898,
+      3.608,
+      7.106
+    ],
+    "prot_xyz": [
+      10.227,
+      1.037,
+      8.707
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR328",
+    "distance": 3.8,
+    "lig_xyz": [
+      3.44,
+      1.653,
+      0.513
+    ],
+    "prot_xyz": [
+      5.191,
+      1.976,
+      -2.844
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "ILE298",
+    "distance": 3.72,
+    "lig_xyz": [
+      4.178,
+      1.997,
+      5.035
+    ],
+    "prot_xyz": [
+      5.066,
+      -1.273,
+      6.574
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR328",
+    "distance": 3.5,
+    "lig_xyz": [
+      4.32,
+      2.503,
+      1.41
+    ],
+    "prot_xyz": [
+      7.025,
+      2.099,
+      -0.778
+    ]
+  }
+]

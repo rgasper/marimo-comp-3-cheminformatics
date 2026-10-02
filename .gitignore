@@ -1,0 +1,8 @@
+# environments / caches
+.venv/
+.cache/
+__pycache__/
+*.pyc
+__marimo__/
+.ruff_cache/
+.DS_Store

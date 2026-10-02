@@ -1,0 +1,152 @@
+[
+  {
+    "type": "hbond",
+    "residue": "GLY29",
+    "distance": 3.47,
+    "lig_xyz": [
+      -19.952,
+      0.748,
+      -0.352
+    ],
+    "prot_xyz": [
+      -22.845,
+      -0.077,
+      1.377
+    ]
+  },
+  {
+    "type": "saltbridge",
+    "residue": "ASP149",
+    "distance": 3.0,
+    "lig_xyz": [
+      -8.602,
+      -0.45,
+      -0.126
+    ],
+    "prot_xyz": [
+      -8.836500000000001,
+      -1.923,
+      2.4805
+    ]
+  },
+  {
+    "type": "pication",
+    "residue": "LYS235",
+    "distance": 4.38,
+    "lig_xyz": [
+      -18.701000000000004,
+      0.5838333333333333,
+      -0.8601666666666669
+    ],
+    "prot_xyz": [
+      -20.23,
+      3.995,
+      -3.142
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR150",
+    "distance": 3.99,
+    "lig_xyz": [
+      -10.564,
+      0.788,
+      0.855
+    ],
+    "prot_xyz": [
+      -12.843,
+      1.705,
+      4.001
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL238",
+    "distance": 3.9,
+    "lig_xyz": [
+      -10.877,
+      3.892,
+      -3.001
+    ],
+    "prot_xyz": [
+      -10.542,
+      6.895,
+      -0.53
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TRP295",
+    "distance": 3.62,
+    "lig_xyz": [
+      -5.123,
+      -1.466,
+      -1.385
+    ],
+    "prot_xyz": [
+      -4.036,
+      1.907,
+      -2.143
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "ILE324",
+    "distance": 3.83,
+    "lig_xyz": [
+      -11.717,
+      -1.179,
+      -2.266
+    ],
+    "prot_xyz": [
+      -10.95,
+      -3.822,
+      -4.926
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR328",
+    "distance": 3.76,
+    "lig_xyz": [
+      -5.123,
+      -1.466,
+      -1.385
+    ],
+    "prot_xyz": [
+      -5.088,
+      -4.764,
+      0.419
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "VAL32",
+    "distance": 3.09,
+    "lig_xyz": [
+      -13.201,
+      -1.182,
+      -1.887
+    ],
+    "prot_xyz": [
+      -14.174,
+      -4.092,
+      -2.266
+    ]
+  },
+  {
+    "type": "hydrophobic",
+    "residue": "TYR328",
+    "distance": 3.58,
+    "lig_xyz": [
+      -6.553,
+      -1.609,
+      -0.866
+    ],
+    "prot_xyz": [
+      -6.669,
+      -5.151,
+      -1.338
+    ]
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "tag": "D3_vs_D4_1_mol1_DopamineD3",
+  "pair": "D3_vs_D4",
+  "index": 1,
+  "mol_id": "mol1",
+  "smiles": "COc1ccc(N2CCN(Cc3c(C)nc4cc(C)nc(C)n34)CC2)cc1",
+  "target": "Dopamine D3",
+  "cif_file": "D3_vs_D4_1_mol1_DopamineD3.cif",
+  "binding_confidence": 0.6664462089538574,
+  "structure_confidence": 0.8698272109031677,
+  "ligand_iptm": 0.9196907877922058
+}

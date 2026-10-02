@@ -1,0 +1,218 @@
+[
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "ECFP (fixed)",
+    "head": "linear",
+    "cliff_rmse": 0.6551794242124799,
+    "noncliff_rmse": 0.7132107401558572,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "ECFP (fixed)",
+    "head": "kNN",
+    "cliff_rmse": 0.7465574739937579,
+    "noncliff_rmse": 0.8325321293658087,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "ECFP (fixed)",
+    "head": "MLP",
+    "cliff_rmse": 0.7804141596192493,
+    "noncliff_rmse": 0.8852158824838163,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "linear",
+    "cliff_rmse": 0.690726598041249,
+    "noncliff_rmse": 0.7864935087822318,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "kNN",
+    "cliff_rmse": 0.7411341511125156,
+    "noncliff_rmse": 0.8224991198078772,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D3",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "MLP",
+    "cliff_rmse": 0.6954607566574096,
+    "noncliff_rmse": 0.9778544669440934,
+    "n_cliff": 320,
+    "n_noncliff": 413
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "ECFP (fixed)",
+    "head": "linear",
+    "cliff_rmse": 0.8495555344228916,
+    "noncliff_rmse": 0.7415274799677132,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "ECFP (fixed)",
+    "head": "kNN",
+    "cliff_rmse": 0.9112198401861601,
+    "noncliff_rmse": 0.8194108857084317,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "ECFP (fixed)",
+    "head": "MLP",
+    "cliff_rmse": 0.8804523324891441,
+    "noncliff_rmse": 0.8632219825419738,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "linear",
+    "cliff_rmse": 0.8044712513047794,
+    "noncliff_rmse": 0.7345893987569958,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "kNN",
+    "cliff_rmse": 0.8679041688741617,
+    "noncliff_rmse": 0.7667750152126479,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "Dopamine D4",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "MLP",
+    "cliff_rmse": 1.2794774236968414,
+    "noncliff_rmse": 2.417018242168587,
+    "n_cliff": 148,
+    "n_noncliff": 226
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "linear",
+    "cliff_rmse": 0.9251491494460303,
+    "noncliff_rmse": 0.7907825967346336,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "kNN",
+    "cliff_rmse": 1.0206625038390553,
+    "noncliff_rmse": 0.9592266078495574,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "MLP",
+    "cliff_rmse": 0.9857574395479833,
+    "noncliff_rmse": 0.9083909841368006,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "linear",
+    "cliff_rmse": 1.031324541152591,
+    "noncliff_rmse": 0.9254094509519082,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "kNN",
+    "cliff_rmse": 0.9289101072134295,
+    "noncliff_rmse": 0.8178851392314712,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "mu-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "MLP",
+    "cliff_rmse": 0.9337506374849309,
+    "noncliff_rmse": 1.1335438308827892,
+    "n_cliff": 259,
+    "n_noncliff": 371
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "linear",
+    "cliff_rmse": 0.8240866631425441,
+    "noncliff_rmse": 0.7429026044353503,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "kNN",
+    "cliff_rmse": 0.888530666313482,
+    "noncliff_rmse": 0.9524834416941167,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "ECFP (fixed)",
+    "head": "MLP",
+    "cliff_rmse": 0.9476226980037802,
+    "noncliff_rmse": 0.7742678215176878,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "linear",
+    "cliff_rmse": 0.8068633990290635,
+    "noncliff_rmse": 2.4118715573585274,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "kNN",
+    "cliff_rmse": 0.8013972525123656,
+    "noncliff_rmse": 0.7144850146927411,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  },
+  {
+    "endpoint": "kappa-opioid",
+    "fingerprint": "CheMeleon (learned)",
+    "head": "MLP",
+    "cliff_rmse": 0.8543914934290509,
+    "noncliff_rmse": 7.294509679533516,
+    "n_cliff": 223,
+    "n_noncliff": 299
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "tag": "mu_vs_kappa_0_mol1_kappa-opioid",
+  "pair": "mu_vs_kappa",
+  "index": 0,
+  "mol_id": "mol1",
+  "smiles": "CO[C@]12CC[C@@]3(C[C@@H]1COCc1ccccc1)[C@H]1Cc4ccc(C#N)c5c4[C@@]3(CCN1CC1CC1)[C@H]2O5",
+  "target": "kappa-opioid",
+  "cif_file": "mu_vs_kappa_0_mol1_kappa-opioid.cif",
+  "binding_confidence": 0.9301766157150269,
+  "structure_confidence": 0.8401121497154236,
+  "ligand_iptm": 0.989593505859375
+}
