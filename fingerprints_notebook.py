@@ -1,3 +1,24 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "altair>=5.4",
+#     "anywidget>=0.11.0",
+#     "chemprop>=2.2.0",
+#     "loguru>=0.7",
+#     "marimo>=0.24.0",
+#     "numpy>=1.26",
+#     "pandas>=2.2",
+#     "pillow>=11",
+#     "polars>=1.20",
+#     "rdkit>=2024.9",
+#     "requests>=2.32",
+#     "scikit-learn>=1.5",
+#     "scipy>=1.13",
+#     "torch>=2.6",
+#     "tqdm>=4.66",
+#     "typeguard>=4.3",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.25.0"

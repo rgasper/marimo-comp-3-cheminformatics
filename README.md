@@ -7,10 +7,26 @@ limitations are by exploring their mechanics and how they interact with activity
 ## Run it
 
 ```bash
-uv venv --python 3.11
-uv pip install -e .
+uv run fingerprints_notebook.py
+```
+
+That's it — dependencies (rdkit, torch, chemprop, marimo, ...) are declared as
+[PEP 723 inline script metadata](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies)
+right at the top of the notebook file, so `uv` installs them into an isolated,
+ephemeral environment on first run, with no `pyproject.toml` or `pip install`
+step required. To edit interactively instead of just running it:
+
+```bash
 uv run marimo edit fingerprints_notebook.py
 ```
+
+(Local development against the `src/fingerprints` package — e.g. running
+`pytest`-style checks, or `python -m fingerprints.recompute` directly — still
+uses the repo's `pyproject.toml` and an editable install: `uv pip install -e .`
+into a `uv venv`. The notebook's inline metadata and the project's
+`pyproject.toml` list the same runtime dependencies and are kept in sync by
+hand; the inline block exists so the notebook is runnable completely on its
+own, including from molab's single-file flows — see below.)
 
 The first cell fetches the 33 MB CheMeleon weights (once) and then the notebook
 is instant. Everything the plots need is **precomputed and shipped** under
@@ -27,12 +43,21 @@ uv run python -m fingerprints.recompute
 Some ways of opening this notebook — notably molab's "Add from GitHub" with a
 direct link to `fingerprints_notebook.py`, or the WebAssembly playground —
 only fetch that one file, not the `src/` and `data/` directories it depends
-on. The very first cell detects this (by checking whether `fingerprints` is
-importable) and, if so, downloads a zip of this repo from GitHub and adds its
-`src/` to `sys.path` before anything else runs, so the notebook behaves the
-same either way. If you'd rather have molab track your repo directly, use its
-GitHub-sync flow with a `blob/<branch>/fingerprints_notebook.py` URL — that
-pulls the whole repository tree alongside the notebook.
+on, or the project's `pyproject.toml`. Two things in the notebook file itself
+handle this automatically:
+
+* its **PEP 723 inline metadata** (the `# /// script ... # ///` block at the
+  top) lets `uv` — and molab, which runs notebooks via `uv run`/`--sandbox` —
+  install every dependency without needing `pyproject.toml` alongside it;
+* its **first cell** checks whether `fingerprints` is importable and, if not,
+  downloads a zip of this repo from GitHub and adds its `src/` to `sys.path`
+  before anything else runs, so `data/` and the analysis modules are present
+  too.
+
+If you'd rather have molab track your repo directly, use its GitHub-sync flow
+with a `blob/<branch>/fingerprints_notebook.py` URL — that pulls the whole
+repository tree alongside the notebook, in which case both of the above are
+no-ops.
 
 ## What ships precomputed (and how it was made)
 
