@@ -109,6 +109,8 @@ def _(mo):
 
     To begin, we'll highlight one of the well-known failings of molecular fingerprints: **activity cliffs**. An activity cliff is the term for when a very small change in the structure of a molecule can cause radical changes in some of it's measurable properties. We'll spend most of the rest of the notebook trying to build an intuitive understanding for how fingerprints are related to activity cliffs, and also how they're not!
 
+    I'll also note that I recommend viewing this notebook in application mode - there was a lot of code that was needed to put this together, most of it not of any particular interest, so most of the cells in the notebook are simply importing the needed functions and stitching together the data flows. The imported code and pre-calculated data are pulled in from the [github repo](https://github.com/rgasper/marimo-comp-3-cheminformatics/tree/main) by the setup cell.
+
     *AI was used in the creation of this notebook. For the full disclaimer, head to the very bottom*
     """)
     return
