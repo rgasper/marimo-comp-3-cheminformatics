@@ -121,28 +121,75 @@ def _(mo):
     # cross-validation, and the 3D Boltz poses), so the notebook loads
     # instantly. The only thing fetched on first run is the 33 MB CheMeleon
     # neural-fingerprint weight, which the live interactive cells need.
-    #
-    # To rebuild everything (except the Boltz poses, which need a GPU and a
-    # paid API key) from scratch, run from a terminal:
-    #
-    #     uv run python -m fingerprints.recompute
     from fingerprints import chemeleon_fp as _chf
 
     with mo.status.spinner(title="Fetching CheMeleon weights (first run only)…"):
         _chf.ensure_weights()
     setup_ready = True
 
+    recompute_button = mo.ui.run_button(
+        label="Recompute everything but Boltz poses",
+        kind="danger",
+        tooltip=(
+            "Deletes every precomputed cache except the 3D Boltz poses, then "
+            "re-downloads every source dataset and re-runs every analysis from "
+            "scratch, in this notebook — roughly 15 minutes, dominated by the "
+            "accumulation module's cross-validation and CheMeleon "
+            "featurisation."
+        ),
+    )
+
+    mo.vstack(
+        [
+            mo.md(
+                "This notebook ships with its analyses **precomputed** so the "
+                "plots load instantly. The button below reruns every analysis "
+                "from scratch, right here in the notebook (there's no terminal "
+                "on molab, so this replaces the `uv run python -m "
+                "fingerprints.recompute` CLI command when you aren't running "
+                "locally). The 3D binding poses are the one thing it doesn't "
+                "rebuild — folding them needs a GPU and a paid Boltz API key, so "
+                "they ship as data; to regenerate those specifically: "
+                "`pip install '.[poses]'`, set `BOLTZ_API_KEY`, then run "
+                "`python -m fingerprints.rebuild_poses` from a terminal."
+            ).callout(kind="neutral"),
+            recompute_button,
+        ]
+    )
+    return recompute_button, setup_ready
+
+
+@app.cell
+def _(mo, recompute_button, setup_ready):
+    # Runs only when the button above is clicked (mo.stop short-circuits
+    # otherwise), and only once per click: a run_button's value resets to
+    # False right after the cells that read it finish running.
+    mo.stop(not recompute_button.value)
+
+    from fingerprints import recompute as _recompute
+
+    assert setup_ready
+    _recompute.clear_outputs()
+    _steps = _recompute.steps()
+    with mo.status.progress_bar(
+        total=len(_steps), title="Rebuilding analyses", remove_on_exit=False
+    ) as _bar:
+        for _step in _steps:
+            _bar.update(subtitle=_step.title)
+            _step.run(
+                lambda msg, _t=_step.title: _bar.update(subtitle=f"{_t}: {msg}")
+            )
+            _bar.update(increment=1)
+    # Drop every in-process cache that read the old (shipped) files, so the
+    # cells below pick up the freshly-written ones without a kernel restart.
+    _recompute.clear_caches()
+
     mo.md(
-        "This notebook ships with its analyses **precomputed** so the plots load "
-        "instantly. To rebuild everything from scratch (downloads every source "
-        "dataset and re-runs every analysis; ~15 minutes), run "
-        "`uv run python -m fingerprints.recompute` from a terminal. The 3D "
-        "binding poses are the one thing that command doesn't rebuild — folding "
-        "them needs a GPU and a paid Boltz API key, so they ship as data; to "
-        "regenerate: `pip install '.[poses]'`, set `BOLTZ_API_KEY`, then run "
-        "`python -m fingerprints.rebuild_poses`."
-    ).callout(kind="neutral")
-    return (setup_ready,)
+        "**Rebuilt everything from scratch** (except the 3D poses). Every plot "
+        "below now reads the freshly-computed files — same code path, no "
+        "shipped caches."
+    ).callout(kind="success")
+    return
 
 
 @app.cell

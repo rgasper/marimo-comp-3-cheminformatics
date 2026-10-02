@@ -87,6 +87,22 @@ def clear_outputs() -> None:
             p.unlink()
 
 
+def clear_caches() -> None:
+    """Drop every in-process ``lru_cache`` that reads the files
+    :func:`clear_outputs` deletes, so a rebuild triggered *within a running
+    session* (e.g. the notebook's recompute button) actually serves the
+    freshly-written data instead of whatever was cached in memory from the
+    shipped files.
+    """
+    from fingerprints import accumulation, admet_view, importance_view, knn_view
+
+    for module in (admet_view, importance_view, knn_view):
+        module._data.cache_clear()
+    accumulation._cache.cache_clear()
+    accumulation._cv_live_cached.cache_clear()
+    accumulation._cliff_oof.cache_clear()
+
+
 def main() -> None:
     """Run every rebuild step from the command line, printing progress."""
     clear_outputs()
