@@ -676,7 +676,7 @@ def _(alt, ctx, mo, pd, setup_ready):
             ),
             mo.as_html(_chart),
             mo.md(
-                "On the flat targets the models don't perfectly capture the property change caused by the molecular change, but the error is typically quite small in practical terms. On the cliff targets however, every prediction consistently under-estimates the actual propery change, and the predicted gap barely grows as the real gap climbs from. This is happening with both fingerprints and even though the models trained on all of this data! As well, one particularly bad outlier for the Dopamine targets actually predicted the cliff in the opposite direction - reducing potency instead of increasing it."
+                "On the flat targets the models don't perfectly capture the property change caused by the molecular change, but the error is typically quite small in practical terms. On the cliff targets however, every prediction consistently under-estimates the actual propery change. This is happening with both fingerprints and even though the models trained on all of this data! As well, one particularly bad outlier for the Dopamine targets actually predicted the cliff in the opposite direction - reducing potency instead of increasing it."
             ),
             mo.md("---"),
         ])
@@ -695,9 +695,8 @@ def _(mo):
     fingerprint records in the first place. Fingerprints come in two families:
 
     - **Classical** — MACCS, Morgan/ECFP, and the other
-      fingerprints available for computation by RDKit. In each of these, a person or a fixed algorithm decided in advance which chemical substructures cause which fingerprint bits to activate. A common trait shared by all these specific "classical" fingerprints is that each dimension is binary - a bit that is either on or off.
-    - **Learned** — Fingerprints that come out of pre-trained neural networks. In this notebook, we'll be focusing on the CheMeleon fingerprint, but there are many others. CheMeleon is a neural network *pre-trained* on millions of unique molecules to read the molecular
-      graph and predict a wide swath of physicochemical properties; we then extract out the final embedding vector before the MLP decision head to use as a fingerprint. In contrast to the "classical" fingerprints, most if not all of the learned fingerprints have continuously varying dimensions.
+      fingerprints available for computation by RDKit. In each of these, a person or a fixed algorithm decided in advance which chemical substructures cause which fingerprint bits to activate. A common trait shared by all these specific "classical" fingerprints is that each dimension is binary - a bit that is either on or off; this can be changed to enable these fingerprints to count up repeat copies of the substructure driving a dimension, but this comes with tradeoffs in interpretability and use cases, and is not the default usage.
+    - **Learned** — Fingerprints that come out of pre-trained neural networks. In this notebook, we'll be focusing on the CheMeleon fingerprint, but there are many others. CheMeleon is a neural network *pre-trained* on millions of unique molecules to read the molecular graph and predict a wide swath of physicochemical properties; we then extract out the final embedding vector before the MLP decision head to use as a fingerprint. In contrast to the "classical" fingerprints, most if not all of the learned fingerprints have continuously varying dimensions. 
 
     These two fingerprint types differ significantly, but share one important aspect - they're static. They can't reactively change to new contexts in chemical or target variable space. Below we look at exactly what chemical features the fingerprints encode. There's another picker for the same sets of molecules that were studied above, or you can input a custom SMILEs for this section. Then you can scrub through bits/dimensions to see what parts of the molecule each fingerprint records.
     """)
@@ -1407,7 +1406,7 @@ def _(mo):
 
     For both types of similarity metrics, more choices are available - these are just two common options.
 
-    Below, molecule 1 of the selected cliff pair is the reference. We compare it with its cliff partner and with an unrelated drug, **celecoxib** (a COX-2 anti-inflammatory). Every fingerprint gives the partner a high score and celecoxib a low one, but the exact numbers differ quite a bit between fingerprints, since each one defines "alike" in its own way. Also pay attention to the first molecules shown in the next section covering activity cliffs in ADMET datasets - in some cases there the fingerprints rate molecules which are clearly different as identical (100% similar)!
+    Below, molecule 1 of the selected cliff pair is the reference. We compare it with its cliff partner and with an unrelated drug, **celecoxib** (a COX-2 anti-inflammatory). Every fingerprint gives the partner a high score and celecoxib a low one, but the exact numbers differ quite a bit between fingerprints, since each one defines "alike" in its own way. Also pay attention to the first molecules shown in the next section covering activity cliffs in ADMET datasets - in some cases there the fingerprints rate molecules which are clearly different as identical!
     """)
     return
 
@@ -1509,9 +1508,7 @@ def _(mo):
 
     The very beginning of this notebook centered on examining pairs of compounds which exhibit an activity cliff against one protein but don't against a second closely related protein. However, the core concept of the activity cliff generalizes across datasets in chemistry and biology. Let's demonstrate this with **ADMET** (Absorption, Distribution, Metabolism, Excretion & Toxicity) properties, where there's no conveniently related second target, just one measurement per molecule.
 
-    Here's analysis on two ADMET endpoints from Therapeutics Data Commons: **aqueous solubility
-    (AqSolDB)** and **lipophilicity (AstraZeneca logD)**. Among
-    the molecules a fingerprint calls similar, how often is the property actually similar?
+    Here's analysis on some ADMET endpoints from the Therapeutics Data Commons and previous OpenADMET competitions. We scanned thru each dataset looking for pairs of molecules that were highly similar, and then collated how much the endpoint measurement changed between that pair to detect how many potential activity cliffs are in the dataset. Because different fingerprints encode structures differently, we run this across all the fingerprints mentioned so far to try and see how much difference this makes in the aggregate.
     """)
     return
 
