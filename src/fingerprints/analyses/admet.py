@@ -45,7 +45,8 @@ _SALT = SaltRemover()
 
 # The census is run under EACH of these fingerprints' similarity, so the
 # notebook can show that "which pairs count as similar (and how cliffy they
-# look)" is itself a choice of fingerprint. All are binary -> Tanimoto.
+# look)" is itself a choice of fingerprint. The classical ones are binary ->
+# Tanimoto; CheMeleon is continuous -> cosine (see census_for_fp below).
 _FP_GENERATORS = {
     "morgan": fpg.GetMorganGenerator(radius=2, fpSize=N_BITS),
     "rdkit_topo": fpg.GetRDKitFPGenerator(fpSize=N_BITS),
@@ -58,9 +59,10 @@ FP_LABELS = {
     "rdkit_topo": "RDKit topological",
     "atom_pair": "Atom pair",
     "top_torsion": "Topological torsion",
+    "chemeleon": "CheMeleon (learned)",
 }
 # order the notebook facets use
-FP_ORDER = ["morgan", "maccs", "atom_pair", "top_torsion", "rdkit_topo"]
+FP_ORDER = ["morgan", "maccs", "atom_pair", "top_torsion", "rdkit_topo", "chemeleon"]
 
 # Each endpoint: the TDC dataset + display metadata. Solubility is the headline
 # (continuous, huge, famous cliffs); lipophilicity is a second continuous option.
@@ -229,15 +231,37 @@ def gap_histogram(dd_sim):
     return hist
 
 
-def census_for_fp(Xfp, ys, iu, dd, sub, smis):
-    """Run the flat-vs-cliff census under one fingerprint's Tanimoto, and pick
-    the sharpest cliff *this fingerprint* calls similar (biggest property gap
-    among its own similar pairs) for the per-fingerprint example."""
-    S = tanimoto(Xfp, Xfp)
+def census_for_fp(S, ys, iu, dd, sub, smis):
+    """Run the flat-vs-cliff census under one fingerprint's similarity matrix
+    ``S``, and pick the sharpest cliff *this fingerprint* calls similar
+    (biggest property gap among its own similar pairs) for the per-fingerprint
+    example. ``S`` can be Tanimoto (binary fingerprints) or cosine (CheMeleon's
+    continuous embedding) - the census itself only cares about the resulting
+    similarity values, not how they were computed."""
     tt = S[iu]
     sim_mask = tt >= SIM_THRESHOLD
     n_similar = int(sim_mask.sum())
     dd_sim = dd[sim_mask]
+
+    # Per-MOLECULE view (as opposed to the per-PAIR frac_cliff below): of all
+    # n_total molecules in the sample, what fraction sit in at least one
+    # similar pair at all ("paired"), and of THOSE, what fraction sit in at
+    # least one cliff pair? This is the stacked-bar version of the same
+    # census - how much of the dataset the cliff problem can even touch, not
+    # just how cliffy its similar pairs are.
+    n_total = int(S.shape[0])
+    paired = np.zeros(n_total, dtype=bool)
+    in_cliff = np.zeros(n_total, dtype=bool)
+    if n_similar:
+        si, sj = iu[0][sim_mask], iu[1][sim_mask]
+        paired[si] = True
+        paired[sj] = True
+        cliff_sim_mask = dd[sim_mask] > CLIFF_GAP
+        ci, cj = si[cliff_sim_mask], sj[cliff_sim_mask]
+        in_cliff[ci] = True
+        in_cliff[cj] = True
+    n_paired = int(paired.sum())
+    n_paired_cliff = int(in_cliff.sum())
 
     # sharpest cliff for this fingerprint: largest gap among ITS similar pairs
     top_cliff = None
@@ -259,9 +283,22 @@ def census_for_fp(Xfp, ys, iu, dd, sub, smis):
         "n_similar_pairs": n_similar,
         "frac_flat": float(np.mean(dd_sim < FLAT_GAP)) if n_similar else 0.0,
         "frac_cliff": float(np.mean(dd_sim > CLIFF_GAP)) if n_similar else 0.0,
+        "frac_molecules_paired": n_paired / n_total if n_total else 0.0,
+        "frac_paired_in_cliff": n_paired_cliff / n_paired if n_paired else 0.0,
         "gap_hist": gap_histogram(dd_sim),
         "top_cliff": top_cliff,
     }
+
+
+def cosine_similarity(X):
+    """Pairwise cosine similarity for a dense, continuous embedding matrix
+    (e.g. CheMeleon's mean-pooled fingerprint), the natural analog of Tanimoto
+    for a non-binary representation."""
+    norm = np.linalg.norm(X, axis=1, keepdims=True)
+    norm = np.where(norm > 0, norm, 1.0)
+    Xn = X / norm
+    return Xn @ Xn.T
+
 
 
 def tanimoto(A, B):
@@ -325,11 +362,22 @@ def analyse_endpoint(meta: dict) -> dict:
     }
 
     # --- the same census under EACH fingerprint's similarity, on the same
-    #     sample and the same gaps, so the facets are directly comparable. ---
+    #     sample and the same gaps, so the facets are directly comparable.
+    #     CheMeleon is continuous (not binary), so its similarity is cosine on
+    #     the mean-pooled embedding rather than Tanimoto on bits - the only
+    #     part of the census that differs for it. ---
     per_fp = {}
     for key in FP_ORDER:
-        Xfp = fp_matrix([smis[int(i)] for i in sub], key)
-        cen = census_for_fp(Xfp, ys, iu, dd, sub, smis)
+        chunk_smis = [smis[int(i)] for i in sub]
+        if key == "chemeleon":
+            from fingerprints import chemeleon_fp as chf
+
+            mols = [Chem.MolFromSmiles(s) for s in chunk_smis]
+            Xche = chf.fingerprint_matrix(mols)
+            S_fp = cosine_similarity(Xche)
+        else:
+            S_fp = tanimoto(fp_matrix(chunk_smis, key), fp_matrix(chunk_smis, key))
+        cen = census_for_fp(S_fp, ys, iu, dd, sub, smis)
         cen["label"] = FP_LABELS[key]
         per_fp[key] = cen
     smoothness["per_fp"] = per_fp

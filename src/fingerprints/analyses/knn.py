@@ -52,7 +52,8 @@ _MORGAN = fpg.GetMorganGenerator(radius=2, fpSize=N_BITS)
 
 # We rebuild the held-out kNN k-curve under EACH fingerprint's similarity, so
 # the notebook can show that the accuracy-vs-k tradeoff (and where it peaks) is
-# itself a choice of fingerprint. All are binary -> Tanimoto.
+# itself a choice of fingerprint. The classical ones are binary -> Tanimoto;
+# CheMeleon is continuous -> cosine (see similarity() below).
 _FP_GENERATORS = {
     "morgan": fpg.GetMorganGenerator(radius=2, fpSize=N_BITS),
     "rdkit_topo": fpg.GetRDKitFPGenerator(fpSize=N_BITS),
@@ -65,8 +66,9 @@ FP_LABELS = {
     "rdkit_topo": "RDKit topological",
     "atom_pair": "Atom pair",
     "top_torsion": "Topological torsion",
+    "chemeleon": "CheMeleon (learned)",
 }
-FP_ORDER = ["morgan", "maccs", "atom_pair", "top_torsion", "rdkit_topo"]
+FP_ORDER = ["morgan", "maccs", "atom_pair", "top_torsion", "rdkit_topo", "chemeleon"]
 # one fixed color per fingerprint, shared by every chart that splits by
 # fingerprint (the k-curve lines AND the per-fingerprint cliff scatter).
 FP_COLORS = {
@@ -75,6 +77,7 @@ FP_COLORS = {
     "atom_pair": "#2b8a3e",
     "top_torsion": "#ae3ec9",
     "rdkit_topo": "#f08c00",
+    "chemeleon": "#7048e8",
 }
 
 # endpoint label -> molace dataset file (same mapping the RF importance uses)
@@ -118,7 +121,14 @@ def ecfp_matrix(smiles):
 
 
 def fp_matrix(smiles, key):
-    """Binary fingerprint matrix (n, N_BITS) for a given fingerprint key."""
+    """Fingerprint matrix (n, d) for a given fingerprint key: binary bits for
+    the classical fingerprints, or CheMeleon's continuous mean-pooled
+    embedding."""
+    if key == "chemeleon":
+        from fingerprints import chemeleon_fp as chf
+
+        mols = [Chem.MolFromSmiles(s) for s in smiles]
+        return chf.fingerprint_matrix(mols)
     if key == "maccs":
         from rdkit.Chem import MACCSkeys
         from rdkit.DataStructs import ConvertToNumpyArray
@@ -144,6 +154,23 @@ def tanimoto(A, B):
     b = B.sum(1)[None, :]
     union = a + b - inter
     return np.where(union > 0, inter / union, 0.0)
+
+
+def cosine_similarity(A, B):
+    """(n,d) x (m,d) continuous -> (n,m) cosine similarity, the natural
+    analog of Tanimoto for CheMeleon's non-binary embedding."""
+    an = np.linalg.norm(A, axis=1, keepdims=True)
+    bn = np.linalg.norm(B, axis=1, keepdims=True)
+    an = np.where(an > 0, an, 1.0)
+    bn = np.where(bn > 0, bn, 1.0)
+    return (A / an) @ (B / bn).T
+
+
+def similarity(A, B, key):
+    """Dispatch to the right pairwise-similarity function for ``key``: cosine
+    for CheMeleon's continuous embedding, Tanimoto for every binary
+    fingerprint."""
+    return cosine_similarity(A, B) if key == "chemeleon" else tanimoto(A, B)
 
 
 def r2(yt, yp):
@@ -225,11 +252,15 @@ def analyse_endpoint(label: str, dataset: str) -> dict:
 
     # --- the SAME held-out curve under each fingerprint's similarity, so the
     #     notebook can overlay them: the accuracy/k tradeoff is fingerprint-
-    #     dependent, and so is where it peaks. ---
+    #     dependent, and so is where it peaks. Fingerprint matrices are built
+    #     once here and reused below for the per-cliff neighbour clouds, so
+    #     CheMeleon's (comparatively slow) embedding is only computed once
+    #     per endpoint. ---
+    fp_mats = {key: fp_matrix(smis, key) for key in FP_ORDER}
     k_curves_by_fp = {}
     for key in FP_ORDER:
-        Xk = fp_matrix(smis, key)
-        Sk = tanimoto(Xk[te], Xk[tr])
+        Xk = fp_mats[key]
+        Sk = similarity(Xk[te], Xk[tr], key)
         curve = []
         for k in K_GRID:
             kk = min(k, int(tr.sum()))
@@ -247,9 +278,6 @@ def analyse_endpoint(label: str, dataset: str) -> dict:
     indexed_cliffs = [
         (i, cl) for tp in ctx.by_key().values() for i, cl in enumerate(tp.cliffs)
     ]
-    # per-fingerprint similarity matrices over the whole dataset, so each cliff
-    # molecule's neighbour cloud + kNN prediction can be shown per fingerprint.
-    fp_mats = {key: fp_matrix(smis, key) for key in FP_ORDER}
     pairs_out = []
     for i, cl in indexed_cliffs:
         c1 = Chem.MolToSmiles(Chem.MolFromSmiles(cl.smiles_1))
@@ -278,7 +306,7 @@ def analyse_endpoint(label: str, dataset: str) -> dict:
             # fingerprint (each has its own nearest neighbours -> own cloud).
             by_fp = {}
             for key, Xk in fp_mats.items():
-                sk = tanimoto(Xk[qi : qi + 1], Xk)[0]
+                sk = similarity(Xk[qi : qi + 1], Xk, key)[0]
                 sk[qi] = -1.0
                 ok = np.argsort(-sk)
                 km = min(max(K_GRID), len(ok))

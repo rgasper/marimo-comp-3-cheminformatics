@@ -19,6 +19,7 @@
 #     "typeguard>=4.3",
 # ]
 # ///
+
 import marimo
 
 __generated_with = "0.25.0"
@@ -87,13 +88,13 @@ def _():
 
 
 @app.cell
-def _(mo):
+def _():
     import altair as alt
     import pandas as pd
 
     from fingerprints import cliff_view as cv
 
-    return alt, cv, mo, pd
+    return alt, cv, pd
 
 
 @app.cell
@@ -696,7 +697,7 @@ def _(mo):
 
     - **Classical** — MACCS, Morgan/ECFP, and the other
       fingerprints available for computation by RDKit. In each of these, a person or a fixed algorithm decided in advance which chemical substructures cause which fingerprint bits to activate. A common trait shared by all these specific "classical" fingerprints is that each dimension is binary - a bit that is either on or off; this can be changed to enable these fingerprints to count up repeat copies of the substructure driving a dimension, but this comes with tradeoffs in interpretability and use cases, and is not the default usage.
-    - **Learned** — Fingerprints that come out of pre-trained neural networks. In this notebook, we'll be focusing on the CheMeleon fingerprint, but there are many others. CheMeleon is a neural network *pre-trained* on millions of unique molecules to read the molecular graph and predict a wide swath of physicochemical properties; we then extract out the final embedding vector before the MLP decision head to use as a fingerprint. In contrast to the "classical" fingerprints, most if not all of the learned fingerprints have continuously varying dimensions. 
+    - **Learned** — Fingerprints that come out of pre-trained neural networks. In this notebook, we'll be focusing on the CheMeleon fingerprint, but there are many others. CheMeleon is a neural network *pre-trained* on millions of unique molecules to read the molecular graph and predict a wide swath of physicochemical properties; we then extract out the final embedding vector before the MLP decision head to use as a fingerprint. In contrast to the "classical" fingerprints, most if not all of the learned fingerprints have continuously varying dimensions.
 
     These two fingerprint types differ significantly, but share one important aspect - they're static. They can't reactively change to new contexts in chemical or target variable space. Below we look at exactly what chemical features the fingerprints encode. There's another picker for the same sets of molecules that were studied above, or you can input a custom SMILEs for this section. Then you can scrub through bits/dimensions to see what parts of the molecule each fingerprint records.
     """)
@@ -1655,9 +1656,9 @@ def _(adm, admet_choice, alt, mo, pd):
             f"are outright **cliffs** (> {_s['cliff_gap']:.1f} log units — more than "
             f"~30× apart). A single-atom or chain-length "
             f"change can move solubility by orders of magnitude while the "
-            f"fingerprint barely changes - or sometimes not at all. **Each column repeats the census under a "
+            f"fingerprint barely changes - or sometimes not at all. Each column repeats the census under a "
             f"different fingerprint's similarity, with that fingerprint's own "
-            f"sharpest cliff drawn beneath** — the exact 'similar' set shifts, "
+            f"sharpest cliff drawn beneath — the exact 'similar' set shifts, "
             f"but every fingerprint has a stubborn red cliff tail and a real pair "
             f"to show for it."
         ).callout(kind="danger" if _s["frac_cliff"] > 0.2 else "warn")
@@ -1676,23 +1677,59 @@ def _(adm, alt, mo, pd):
     # cliffiness varies wildly by target (you can't know in advance), AND which
     # fingerprint happens to minimise cliffs flips per target - so you can't
     # know in advance which encoding will serve a new endpoint either.
+    #
+    # Each bar is now stacked in two segments, both read off the same census:
+    #   - the taller, solid segment is frac_molecules_paired - how much of the
+    #     dataset this fingerprint even considers "similar" to something else
+    #     at all (the cliff question can only ever apply to this slice);
+    #   - the shorter, translucent segment on top is frac_paired_in_cliff -
+    #     of THOSE paired molecules, how many sit in an outright cliff.
+    # Same color per fingerprint in both segments; the cliff segment is drawn
+    # lighter so the two stay visually distinct without a second legend.
     if not adm.has_data():
         admet_compare_view = mo.md("")
     else:
         _palette = _knn.fp_colors()  # shared with the kNN charts
+        _kind_label = {
+            "rest": "paired, not a cliff",
+            "cliff": "paired, and in a cliff",
+        }
         _rows = []
         for _e in adm.endpoints():
             _unit = adm.meta(_e)["unit"]
             _elabel = f"{_e}\n({_unit})"
             for _fv in adm.per_fp(_e).values():
+                # Both segments are shares of ALL molecules (not nested
+                # percentages), so they stack to EXACTLY frac_molecules_paired:
+                # cliff_pct is the share that's paired AND in a cliff;
+                # rest_pct is the share that's paired but NOT in a cliff.
+                # (frac_paired_in_cliff itself is "of the paired ones, what
+                # fraction are cliffs" - a conditional probability, not a
+                # share of all molecules, so it has to be rescaled before
+                # stacking or the bar overshoots 100%.)
+                _paired_pct = _fv["frac_molecules_paired"] * 100
+                _cliff_pct = _paired_pct * _fv["frac_paired_in_cliff"]
+                _rest_pct = _paired_pct - _cliff_pct
                 _rows.append(
                     {
                         "endpoint": _elabel,
                         "fingerprint": _fv["label"],
-                        "cliff_pct": round(_fv["frac_cliff"] * 100, 1),
+                        "kind": "cliff",
+                        "pct": round(_cliff_pct, 1),
+                        "stack_order": 0,
+                    }
+                )
+                _rows.append(
+                    {
+                        "endpoint": _elabel,
+                        "fingerprint": _fv["label"],
+                        "kind": "rest",
+                        "pct": round(_rest_pct, 1),
+                        "stack_order": 1,
                     }
                 )
         _df = pd.DataFrame(_rows)
+        _df["kind_label"] = _df["kind"].map(_kind_label)
         _ep_order = [f"{_e}\n({adm.meta(_e)['unit']})" for _e in adm.endpoints()]
         _fp_order = [_fv["label"] for _fv in adm.per_fp(adm.endpoints()[0]).values()]
         _chart = (
@@ -1702,27 +1739,38 @@ def _(adm, alt, mo, pd):
                 x=alt.X("endpoint:N", title=None, sort=_ep_order,
                         axis=alt.Axis(labelAngle=0, labelLimit=200)),
                 xOffset=alt.XOffset("fingerprint:N", sort=_fp_order),
-                y=alt.Y("cliff_pct:Q",
-                        title="% of similar pairs that are cliffs",
-                        scale=alt.Scale(domain=[0, 100])),
+                y=alt.Y("pct:Q", title="% of all molecules", stack="zero"),
+                order=alt.Order("stack_order:Q"),
                 color=alt.Color(
                     "fingerprint:N",
                     scale=alt.Scale(
                         domain=_fp_order,
                         range=[_palette.get(lbl, "#868e96") for lbl in _fp_order],
                     ),
-                    legend=alt.Legend(title=None, orient="bottom", columns=5),
+                    legend=alt.Legend(title=None, orient="bottom", columns=6),
                 ),
-                tooltip=["endpoint:N", "fingerprint:N", "cliff_pct:Q"],
+                opacity=alt.Opacity(
+                    "kind_label:N",
+                    sort=[_kind_label["rest"], _kind_label["cliff"]],
+                    scale=alt.Scale(
+                        domain=[_kind_label["rest"], _kind_label["cliff"]],
+                        range=[0.35, 1.0],
+                    ),
+                    legend=alt.Legend(title=None, orient="bottom", columns=1),
+                ),
+                tooltip=["endpoint:N", "fingerprint:N", "kind_label:N", "pct:Q"],
             )
-            .properties(height=280)
+            .properties(height=320)
         )
         admet_compare_view = mo.vstack(
             [
                 mo.md(
-                    "If we run the same census across those ADMET endpoints — three public "
+                    "If we run the same census across those ADMET endpoints - three public "
                     "TDC benchmarks **plus the OpenADMET ExpansionRx LogD and "
-                    "solubility sets** — and break them out by fingerprint, we can see that the situation is unfortunately not solved by just picking a 'better' fingerprint:"
+                    "solubility sets** - and break them out by fingerprint, we can see that the situation is unfortunately not solved by just picking a 'better' fingerprint. Each bar's full height is how much of the dataset this fingerprint even calls "
+                    "'similar to something' in the first place; the lighter top segment is the share of "
+                    "those same molecules that specifically sit in an outright cliff (so it's always a slice "
+                    "of the bar beneath it, never on top of 100%). One very distinctive feature that pops out is that CheMeleon similarity assigns way more of the molecules to similar pairs than the other fingerprints - this is a bit of a diversion, but I am guessing that this is due to embedding space anisotropy, which [recent work](https://arxiv.org/html/2401.12143v2) has shown is a consistent feature of certain deep neural networks. This does mean that when applied purely for simple similarity calculation, machine-learned fingerprints may be less useful than their classical alternatives. When used as input for models, however, they tend to be better than the classics, as you'll see in a bit."
                 ),
                 mo.as_html(_chart),
                 mo.md(
@@ -1743,6 +1791,7 @@ def _(adm, alt, mo, pd):
                     "single-platform, controlled-condition measurement (less "
                     "inter-lab variation in measurements). The presence of cliffs is a "
                     "property of the data as well as the chemistry. A model trained on data from another lab may not play well with data from your lab.\n\n"
+                     "4. As already mentioned, the CheMeleon fingerprint is saying that nearly all molecules are more than 70% similar. We could combat this by fine-tuning that cutoff, but ultimately that's essentially fitting a new similarity model to this specific fingerprint and dataset, which we'll avoid for this example!"
                 ).callout(kind="info"),
                 mo.md("---"),
             ]

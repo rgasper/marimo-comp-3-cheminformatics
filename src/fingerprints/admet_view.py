@@ -57,9 +57,13 @@ def smoothness(endpoint: str) -> dict:
 
 
 def per_fp(endpoint: str) -> dict:
-    """{fp_key: {label, n_similar_pairs, frac_flat, frac_cliff, gap_hist,
-    top_cliff}} - the census run under each fingerprint's similarity, plus that
-    fingerprint's own sharpest cliff."""
+    """{fp_key: {label, n_similar_pairs, frac_flat, frac_cliff,
+    frac_molecules_paired, frac_paired_in_cliff, gap_hist, top_cliff}} - the
+    census run under each fingerprint's similarity, plus that fingerprint's
+    own sharpest cliff. ``frac_molecules_paired`` is the share of molecules
+    that sit in at least one similar pair at all; ``frac_paired_in_cliff`` is,
+    among those paired molecules, the share that sit in at least one cliff
+    pair."""
     return _data()["endpoints"][endpoint]["smoothness"].get("per_fp", {})
 
 
