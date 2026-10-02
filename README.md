@@ -22,6 +22,18 @@ cross-validation and CheMeleon featurisation), run:
 uv run python -m fingerprints.recompute
 ```
 
+### Opening a single-file copy (e.g. on molab)
+
+Some ways of opening this notebook — notably molab's "Add from GitHub" with a
+direct link to `fingerprints_notebook.py`, or the WebAssembly playground —
+only fetch that one file, not the `src/` and `data/` directories it depends
+on. The very first cell detects this (by checking whether `fingerprints` is
+importable) and, if so, downloads a zip of this repo from GitHub and adds its
+`src/` to `sys.path` before anything else runs, so the notebook behaves the
+same either way. If you'd rather have molab track your repo directly, use its
+GitHub-sync flow with a `blob/<branch>/fingerprints_notebook.py` URL — that
+pulls the whole repository tree alongside the notebook.
+
 ## What ships precomputed (and how it was made)
 
 | Artifact | File | Built by |

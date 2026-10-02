@@ -6,8 +6,68 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    import altair as alt
+    # --- Bootstrap: make src/ and data/ available -------------------------
+    # Platforms like molab's single-file "Add from GitHub" flow (and the
+    # WebAssembly playground) only fetch *this* .py file, not the repo it
+    # lives in -- so "import fingerprints" and the precomputed data/ caches
+    # it reads would otherwise be missing. If a real checkout (local dev, or
+    # a properly repo-synced molab notebook) is already present next to this
+    # file, this is a no-op; otherwise it downloads the repo's src/ and
+    # data/ directories straight from GitHub (no git, no API calls that hit
+    # rate limits -- just one zip download) and puts src/ on sys.path, so
+    # the rest of the notebook behaves identically either way.
+    _GITHUB_REPO = "rgasper/marimo-comp-3-cheminformatics"
+    _GITHUB_BRANCH = "main"
+
+    import importlib.util
+    import sys
+    from pathlib import Path
+
     import marimo as mo
+
+    def _bootstrap() -> None:
+        if importlib.util.find_spec("fingerprints") is not None:
+            return  # already installed (e.g. local `uv run`/editable install)
+
+        here = mo.notebook_dir() or Path.cwd()
+        local_src = here / "src"
+        if (local_src / "fingerprints").is_dir():
+            sys.path.insert(0, str(local_src))
+            return  # repo was checked out alongside the notebook already
+
+        import io
+        import shutil
+        import zipfile
+
+        import requests
+
+        cache_root = Path.home() / ".cache" / "fingerprints-notebook-bootstrap"
+        extract_dir = cache_root / _GITHUB_BRANCH
+        marker = extract_dir / ".complete"
+        if not marker.exists():
+            url = (
+                f"https://github.com/{_GITHUB_REPO}/archive/refs/heads/"
+                f"{_GITHUB_BRANCH}.zip"
+            )
+            resp = requests.get(url, timeout=60)
+            resp.raise_for_status()
+            with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+                zf.extractall(cache_root)
+            # the zip's sole top-level entry is "<repo>-<branch>/"
+            (top,) = (p for p in cache_root.iterdir() if p.is_dir())
+            if extract_dir.exists():
+                shutil.rmtree(extract_dir)
+            top.rename(extract_dir)
+            marker.touch()
+        sys.path.insert(0, str(extract_dir / "src"))
+
+    _bootstrap()
+    return (mo,)
+
+
+@app.cell
+def _(mo):
+    import altair as alt
     import pandas as pd
 
     from fingerprints import cliff_view as cv
