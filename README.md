@@ -32,7 +32,7 @@ The first cell fetches the 33 MB CheMeleon weights (once) and then the notebook
 is instant. Everything the plots need is **precomputed and shipped** under
 `data/`. To rebuild it all from scratch (downloads every source dataset and
 re-runs every analysis; ~15 minutes, dominated by the accumulation module's
-cross-validation and CheMeleon featurisation), run:
+cross-validation and CheMeleon featurisation), there is a button in the notebook, or you can run:
 
 ```bash
 uv run python -m fingerprints.recompute
