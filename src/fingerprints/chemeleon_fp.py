@@ -23,7 +23,6 @@ Weights are cached under ``.cache/chemeleon``; download once from Zenodo.
 from __future__ import annotations
 
 import urllib.request
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -129,6 +128,7 @@ def fingerprint_matrix(mols, batch_size: int = 256) -> np.ndarray:
             offset += n
     return out
 
+
 def atom_contributions(mol: Chem.Mol, dim: int) -> np.ndarray:
     """Each atom's exact contribution to embedding dimension ``dim``.
 
@@ -138,13 +138,6 @@ def atom_contributions(mol: Chem.Mol, dim: int) -> np.ndarray:
     H = atom_hidden(mol)
     n = H.shape[0]
     return H[:, dim] / n
-
-
-@dataclass(frozen=True)
-class DimInfo:
-    dim: int
-    value: float  # fingerprint[dim] (the mean)
-    top_atom: int  # atom contributing most (abs)
 
 
 def dim_sensitivity(mol: Chem.Mol) -> np.ndarray:

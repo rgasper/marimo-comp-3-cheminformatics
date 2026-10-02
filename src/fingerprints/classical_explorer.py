@@ -229,12 +229,3 @@ def fingerprint_strip_svg(
         )
     parts.append("</svg>")
     return "".join(parts)
-
-
-def plain_svg(mol: Chem.Mol, *, width: int = 460, height: int = 340) -> str:
-    """Render mol with nothing highlighted (used for the opaque Avalon tab)."""
-    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-    drawer.drawOptions().addStereoAnnotation = False
-    rdMolDraw2D.PrepareAndDrawMolecule(drawer, mol)
-    drawer.FinishDrawing()
-    return drawer.GetDrawingText()

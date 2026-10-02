@@ -322,9 +322,7 @@ def analyse_endpoint(label: str, dataset: str) -> dict:
 
 def _ensure_molace(dataset: str):
     """Download a MoleculeACE CSV into CACHE_MOLACE if not present."""
-    ds = molace.MolACEDataset(
-        name=dataset, target_label=dataset, target_class="", assay_type="Ki"
-    )
+    ds = molace.MolACEDataset(name=dataset, target_label=dataset)
     molace.download_molace(ds, CACHE_MOLACE / f"{dataset}.csv")
 
 
@@ -360,10 +358,6 @@ def main(out_dir=None, on_step=None):
     path.write_text(json.dumps(out))
     logger.info(f"wrote {path} ({path.stat().st_size / 1e6:.2f} MB)")
     return path
-
-
-def endpoint_labels() -> list[str]:
-    return list(ENDPOINTS.keys())
 
 
 if __name__ == "__main__":

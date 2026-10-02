@@ -421,10 +421,5 @@ def main(out_dir: Path | None = None, on_step=None):
     return path
 
 
-def endpoint_labels() -> list[str]:
-    """Ordered endpoint labels, for progress-bar sizing."""
-    return list(ENDPOINTS.keys())
-
-
 if __name__ == "__main__":
     main()

@@ -34,70 +34,33 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # --- Setup control -------------------------------------------------------
+    # --- Setup -----------------------------------------------------------
     # Everything the plots need ships PRECOMPUTED under data/ (the cliff
-    # censuses, kNN analysis, feature-importances, and the 3D Boltz poses), so
-    # the notebook loads instantly. The only thing fetched on first run is the
-    # 33 MB CheMeleon neural-fingerprint weight, which the live interactive
-    # cells need. One checkbox rebuilds every analysis from scratch (downloads
-    # the source datasets and re-runs everything - ~10 min, dominated by
-    # CheMeleon). The 3D Boltz poses are the one thing this button doesn't
-    # rebuild: folding needs a GPU and a paid API key, so it stays a separate,
-    # documented offline command.
-    recompute_toggle = mo.ui.checkbox(
-        value=False, label="Recompute all analyses from scratch (~10 min)"
-    )
-    return (recompute_toggle,)
-
-
-@app.cell
-def _(mo, recompute_toggle):
+    # censuses, kNN analysis, feature-importances, the accumulation module's
+    # cross-validation, and the 3D Boltz poses), so the notebook loads
+    # instantly. The only thing fetched on first run is the 33 MB CheMeleon
+    # neural-fingerprint weight, which the live interactive cells need.
+    #
+    # To rebuild everything (except the Boltz poses, which need a GPU and a
+    # paid API key) from scratch, run from a terminal:
+    #
+    #     uv run python -m fingerprints.recompute
     from fingerprints import chemeleon_fp as _chf
-    from fingerprints import recompute as _recompute
 
-    if recompute_toggle.value:
-        # Full from-scratch rebuild, wrapped in a progress bar.
-        _recompute.clear_outputs()
-        _steps = _recompute.steps()
-        with mo.status.progress_bar(
-            total=len(_steps), title="Rebuilding analyses", remove_on_exit=False
-        ) as _bar:
-            for _step in _steps:
-                _bar.update(subtitle=_step.title)
-                _step.run(lambda msg, _t=_step.title: _bar.update(subtitle=f"{_t}: {msg}"))
-                _bar.update(increment=1)
-        setup_ready = True
-        _setup_msg = mo.md(
-            "**Rebuilt everything from scratch.** The plots below now read the "
-            "freshly-computed files — identical machinery, no shipped caches. (The "
-            "3D poses are the exception: they need a GPU folding job and a paid "
-            "Boltz key, so the shipped ones are always used — see the note below.)"
-        ).callout(kind="success")
-    else:
-        # Fast path: just make sure the neural-fingerprint weight is present.
-        with mo.status.spinner(title="Fetching CheMeleon weights (first run only)…"):
-            _chf.ensure_weights()
-        setup_ready = True
-        _setup_msg = mo.md(
-            "This notebook ships with its analyses **precomputed** so the plots "
-            "load instantly (and so we don't accidentally spend money re-running "
-            "Boltz inference). Tick the box to rebuild every analysis from scratch "
-            "instead — same machinery, no shipped caches."
-        ).callout(kind="neutral")
+    with mo.status.spinner(title="Fetching CheMeleon weights (first run only)…"):
+        _chf.ensure_weights()
+    setup_ready = True
 
-    mo.vstack(
-        [
-            _setup_msg,
-            recompute_toggle,
-            mo.md(
-                "*The 3D binding poses are **not** rebuilt by this button — folding "
-                "them needs a GPU and a paid Boltz API key. To regenerate them "
-                "offline: `pip install '.[poses]'`, set `BOLTZ_API_KEY`, then run "
-                "`python -m fingerprints.rebuild_poses`. The shipped poses are used "
-                "otherwise.*"
-            ),
-        ]
-    )
+    mo.md(
+        "This notebook ships with its analyses **precomputed** so the plots load "
+        "instantly. To rebuild everything from scratch (downloads every source "
+        "dataset and re-runs every analysis; ~15 minutes), run "
+        "`uv run python -m fingerprints.recompute` from a terminal. The 3D "
+        "binding poses are the one thing that command doesn't rebuild — folding "
+        "them needs a GPU and a paid Boltz API key, so they ship as data; to "
+        "regenerate: `pip install '.[poses]'`, set `BOLTZ_API_KEY`, then run "
+        "`python -m fingerprints.rebuild_poses`."
+    ).callout(kind="neutral")
     return (setup_ready,)
 
 
@@ -583,9 +546,8 @@ def _(alt, ctx, mo, pd, setup_ready):
             ),
             mo.as_html(_chart),
             mo.md(
-                "The split is stark. On the flat targets the models don't perfectly capture the property change caused by the molecular change, but the error is typically quite small in practical terms.. On the cliff targets, however every preidction consistently under-estimates the actual propery change, and the predicted gap barely grows as the real gap climbs from. This is happening with both fingerprints and even though "
-                "the models trained on all of this data!"
-            ).callout(kind="info"),
+                "On the flat targets the models don't perfectly capture the property change caused by the molecular change, but the error is typically quite small in practical terms. On the cliff targets however, every prediction consistently under-estimates the actual propery change, and the predicted gap barely grows as the real gap climbs from. This is happening with both fingerprints and even though the models trained on all of this data! As well, one particularly bad outlier for the Dopamine targets actually predicted the cliff in the opposite direction - reducing potency instead of increasing it."
+            ),
             mo.md("---"),
         ])
     _gap_summary_view
@@ -1302,20 +1264,20 @@ def _(mo):
     mo.md(r"""
     ---
 
-    ## From fingerprints to *similarity*
+    ## From fingerprints to similarity
 
     Once every molecule is a row of numbers, "how alike are these two molecules?" becomes "how alike are these two rows?". That single number, the **fingerprint similarity**, is a regular metric used in cheminformatics work and will come up a lot in the next sections of this notebook.
 
-    - **Classical (binary) fingerprints** use the **Tanimoto** similarity: of all the bits that are on in *either* molecule, what fraction are on in *both*?
+    - Classical (binary) fingerprints use the **Tanimoto** similarity: of all the bits that are on in *either* molecule, what fraction are on in *both*?
 
         $$ T(A, B) \;=\; \frac{\lvert A \cap B \rvert}{\lvert A \cup B \rvert} $$
 
         1.0 means identical bit patterns and 0.0 means no bits in common. It's rare to see values of this close to zero, since as we saw above some of these bits end up encoding for very common substructures like "a carbon connected to another carbon".
-    - **Learned (continuous) fingerprints** like CheMeleon have no on/off bits, so we use the **cosine similarity** of the two vectors instead (the angle between them). It's a different metric on a different scale, so CheMeleon numbers can't be compared one-to-one with Tanimoto numbers.
+    - Learned (continuous) fingerprints like CheMeleon have no on/off bits, so we use the **cosine similarity** of the two vectors instead (the angle between them). It's a different metric on a different scale, so CheMeleon numbers can't be compared one-to-one with Tanimoto numbers.
 
-    For both types of similarity metrics, more choices are available - these are two common options however.
+    For both types of similarity metrics, more choices are available - these are just two common options.
 
-    Below, molecule 1 of the selected cliff pair is the reference. We compare it with its cliff partner and with an unrelated drug, **celecoxib** (a COX-2 anti-inflammatory). Every fingerprint gives the partner a high score and celecoxib a low one, but the exact numbers differ quite a bit between fingerprints, since each one defines "alike" in its own way. Also pay attention to the first molecules shown in the next section covering activity cliffs in ADMET datasets - in some cases there the fingerprints rate molecules as identical (100% similar)
+    Below, molecule 1 of the selected cliff pair is the reference. We compare it with its cliff partner and with an unrelated drug, **celecoxib** (a COX-2 anti-inflammatory). Every fingerprint gives the partner a high score and celecoxib a low one, but the exact numbers differ quite a bit between fingerprints, since each one defines "alike" in its own way. Also pay attention to the first molecules shown in the next section covering activity cliffs in ADMET datasets - in some cases there the fingerprints rate molecules which are clearly different as identical (100% similar)!
     """)
     return
 
@@ -1667,7 +1629,7 @@ def _(mo):
     mo.md(r"""
     ### How activity cliffs cause models to lose accuracy
 
-    We've seen so far that the presence activity cliffs can correlate to poor model performance on some specific chemistries and applications, and that fingerprint's notions of similiarities map differently well to different datasets. Next, lets extend these ideas to try and understand why statistical models cannot reliably capture activity cliffs, regardless of fingerprint.
+    We've seen so far that the presence activity cliffs can correlate to poor model performance on some specific chemistries and applications, and that fingerprint's notions of similiarities map differently well to different datasets. Next, lets dig into these ideas to try and understand why statistical models cannot reliably capture activity cliffs, regardless of fingerprint.
 
     To explore that we simplify the model down to a minimal example. Just **k-nearest-neighbours**
     on the fingerprint: a molecule's prediction is just the average value of
@@ -1932,7 +1894,7 @@ def _(alt, ctx, get_cliff_idx, get_pair_key, k_slider, knn, mo, pd):
                     "global held-out accuracy (R²) per fingerprint — it rises to a "
                     "peak at some k. **Bottom:** RMSE on the **cliff pairs only** "
                     f"(all {_n_cliff} in this endpoint) — usually flat or worse with increasing k. "
-                    "The same parameter in the mdoel - neighbourhood size - that maximises average accuracy usually makes predictions over cliffs worse, because it washes out the contribution of small structural changes."
+                    "The same parameter in the model - neighbourhood size - that maximises average accuracy usually makes predictions over cliffs worse, because it washes out the contribution of small structural changes. You can see this very clearly in the plot on the right, where increasing neighborhood size causes the prediction on molecule 1 vs molecule to converge."
                 ),
                 mo.hstack(
                     [
@@ -2148,8 +2110,7 @@ def _(mo):
     fixed fingerprint), **count Morgan** (same bits, but each slot holds a count
     so a linear head can literally add them up), and
     the **CheMeleon** fingerprint. CheMeleon is interesting here: it's pre-trained for molecular
-    property prediction so you might expect it to ace the heavy-atom count task- it does get close but not quite perfect! All heads are fairly tuned (RidgeCV). To check if a sufficiently deep neural net
-    could by some unknown mechanism reconstruct accumulated properties from a fingerprint, we also try the **binary Morgan** feature with a narrow-but-deep MLP decision head.
+    property prediction so you might expect it to ace the heavy-atom count task- it does get close but not quite perfect! All heads are fairly tuned (RidgeCV).
 
     A single train/test split gives one number per model and no sense of how much that number would move on a different split. So instead every model is scored with **5×5 scaffold cross-validation**: the molecules are dealt into 5 folds by Bemis–Murcko scaffold (no scaffold is ever in both train and test), each fold takes a turn as the test set, and the whole thing is repeated 5 times with a different shuffle. That gives **25 scores per model, on the same 25 splits for every model**, which we compare with **Tukey's Honestly Significant Difference (HSD)** test:
 
@@ -2317,11 +2278,7 @@ def _(acc_metric, alt, mo, pd, setup_ready):
         f"{_mean(_h, 'count_linear'):.3f}**) on every one of the 25 splits; it just "
         f"sums the bits, which is the target. The binary fingerprint + the same "
         f"linear model averages **R² {_mean(_h, 'binary_linear'):.2f}**: once you "
-        f"binarise, you can't tell one –CH₂– from six. Handing the binary "
-        f"fingerprint to a **narrow-but-deep neural net** gives **R² "
-        f"{_mean(_h, 'binary_mlp'):.2f}**, statistically no better. Depth reshuffles "
-        f"which bits co-occur but can't recover multiplicity the fingerprint never "
-        f"stored.\n\n"
+        f"binarise, you can't tell one –CH₂– from six.\n\n"
         f"The CheMeleon fingerprint does markedly better than binary (mean **R² "
         f"{_mean(_h, 'chemeleon_linear'):.2f}**). Even though it mean-pools over "
         f"atoms (which divides out molecule size), its pretrained fingerprint "
@@ -2334,7 +2291,7 @@ def _(acc_metric, alt, mo, pd, setup_ready):
         f"**{_mean(_s, 'binary_linear'):.2f}** for binary (paired p = "
         f"{_p_sol:.0e}), but it's nowhere near the near-perfect fit it gets on a "
         f"pure accumulator, because solubility is only partly an accumulated "
-        f"quantity. CheMeleon's pre-trained fingerprint is the best of the four "
+        f"quantity. CheMeleon's pre-trained fingerprint is the best of the three "
         f"on solubility (mean **R² {_mean(_s, 'chemeleon_linear'):.2f}**)."
     ).callout(kind="info")
 
@@ -2500,8 +2457,7 @@ def _(alt, mo, pd, setup_ready):
         f"{_summ['n_mols']:,} molecules, **{_summ['n_cliff_pairs']}** are cliffs, and "
         f"**{_n_ident}** of those have identical binary Morgan fingerprints.\n\n"
         f"- **Binary Morgan** recovers only **{100 * _mean('binary_linear', 'gap_recovered'):.0f}%** "
-        f"of the average cliff gap with a linear head, and "
-        f"**{100 * _mean('binary_mlp', 'gap_recovered'):.0f}%** with the deep MLP. On the "
+        f"of the average cliff gap with a linear head. On the "
         f"identical-fingerprint pairs it recovers essentially nothing "
         f"({_rec_of('binary_linear', True):.0f}%), as it must.\n"
         f"- **Count Morgan** recovers **{100 * _mean('count_linear', 'gap_recovered'):.0f}%** "
@@ -2787,6 +2743,10 @@ def _(ctx, get_cliff_idx, get_pair_key, mo):
                     "bits — even this data-derived fingerprint doesn't obviously "
                     "explain the potency gap.*"
                 ),
+                mo.md("---"),
+                mo.md("""
+                The PLIP fingerprint is just intended to help document and understand the 3D pose, and is not really an alternative to chemical structure fingerprints. It's highly informative if you know what you're looking at, but to capture this information we've traded generality for specificity - it's possible and sensible to compare structural fingerprints of molecules between completely unrelated chemical origins or for unrelated tasks; however for the 3D interaction, the information is only useful in a particular context. You can't easily compare between different proteins, or even between different chemical series on the same protein - if the molecules don't share enough structural elements in common, they may have similar binding strengths but interact with totally different residues on the protein.
+                """)
             ]
         )
     mo.vstack([_view, mo.md("---")])
@@ -2800,7 +2760,7 @@ def _(mo):
 
     ## So what are fingerprints good for?
 
-    It would be easy to read all of the above as an indictment! It isn't.
+    It would be easy to read much of the above investigation into how fingerprints can't capture activity clfifs as an indictment! It isn't.
     Molecular fingerprints are one of the most useful abstractions in all of
     cheminformatics, and the struggle with activity cliffs is a direct consequence of why
     they work so well:
@@ -2810,10 +2770,10 @@ def _(mo):
       similar pairs in these real datasets, and does in most. That is exactly why fingerprints
       power similarity search, clustering, library design, and property
       prediction across the entire field — they are cheap, fast, and often correct.
-    - **They are a phenomenal baseline.** A fixed fingerprint plus a simple
+    - **They are a great baseline.** A fixed fingerprint plus a simple
       model is trivial to compute, needs no training of the representation, and
       is hard to beat on smooth, well-behaved endpoints. Despite the increasing usefulness of large foundation models, simple 'classic' ML with fingerprints as input can still turn out to be the best model for some datasets.
-    - **We can understand their limits.** Because the classic fingerprints work with an unchanging algorithm, it is possible to develop an informed intuition for what they can and cannot do. My hope with this notebook was to help develop that in myself and others.
+    - **We can understand their limits.** Because the classic fingerprints work with an unchanging algorithm, it is possible to develop an informed intuition for what they can and cannot do. My hope with this notebook was to help develop that intuition in myself and others.
     """)
     return
 
@@ -2825,10 +2785,9 @@ def _(mo):
 
     ### About this notebook
 
-    **AI use:** This notebook was built in
-    a pairing session with an AI coding assistant: it helped scaffold the marimo
+    **AI use:** This notebook was built with AI assistance: it helped scaffold the marimo
     cells, the custom anywidget for visualizing the Boltz poses, and the analysis scripts; work through experiments, and write early drafts of the prose. Every chemical claim, data source, and result was
-    reviewed; the majority of prose was written by Raymond Gasper, with a little bit of LLM prose left behind after review.
+    reviewed; the majority of prose was written by the author, with a little bit of LLM prose left behind after review.
 
     All chemical structure handling runs through **RDKit**. Binding data are from **MoleculeACE**
     (curated ChEMBL bioactivities with published activity-cliff labels); the
@@ -2836,9 +2795,7 @@ def _(mo):
     **AstraZeneca**) come from **Therapeutics Data Commons**, where we strip
     salts, keep the largest organic fragment, and de-duplicate by canonical
     parent SMILES before analysis. Every train/test split — for the learned
-    model and the ADMET census alike — is a **Bemis–Murcko scaffold split** - I'm aware that this has limitations and may not be the most rigorous way to do a chemical dataset splitting, but didn't want to get overly complex just for these demonstrations. 3D
-    complexes are **Boltz-2** predictions and protein–ligand interactions are detected
-    with **PLIP**.
+    model and the ADMET census alike — is a **Bemis–Murcko scaffold split** - I'm aware that this has limitations and may not be the most rigorous way to do a chemical dataset splitting, but didn't want to get overly complex just for these demonstrations. 3D complexes are **Boltz-2** predictions and protein–ligand interactions are detected with **PLIP**.
 
     **Reproducibility.** Heavy compute (folding, interaction detection, model
     training) runs offline and is cached in `data/`; the notebook only reads

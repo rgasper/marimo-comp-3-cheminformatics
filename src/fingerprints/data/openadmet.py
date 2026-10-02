@@ -46,26 +46,17 @@ class OpenADMETEndpoint:
     Args:
         name: short id (used for filenames/titles)
         column: the column in the ExpansionRx CSV
-        property_label: human-readable y-axis label
         log10: apply log10 to the raw value (for µM solubility -> log units)
     """
 
     name: str
     column: str
-    property_label: str
     log10: bool = False
 
 
-EXP_LOGD = OpenADMETEndpoint(
-    name="openadmet_expansionrx_logd",
-    column="LogD",
-    property_label="OpenADMET LogD (ExpansionRx)",
-)
+EXP_LOGD = OpenADMETEndpoint(name="openadmet_expansionrx_logd", column="LogD")
 EXP_KSOL = OpenADMETEndpoint(
-    name="openadmet_expansionrx_ksol",
-    column="KSOL",
-    property_label="OpenADMET solubility (ExpansionRx, log µM)",
-    log10=True,
+    name="openadmet_expansionrx_ksol", column="KSOL", log10=True
 )
 
 

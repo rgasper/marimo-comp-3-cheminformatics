@@ -19,9 +19,13 @@ uv run marimo edit fingerprints_notebook.py
 
 The first cell fetches the 33 MB CheMeleon weights (once) and then the notebook
 is instant. Everything the plots need is **precomputed and shipped** under
-`data/`. Tick *“Recompute all analyses from scratch”* in the first cell to
-rebuild it all live (downloads every source dataset and re-runs the analyses;
-~10 minutes, dominated by CheMeleon featurisation).
+`data/`. To rebuild it all from scratch (downloads every source dataset and
+re-runs every analysis; ~15 minutes, dominated by the accumulation module's
+cross-validation and CheMeleon featurisation), run:
+
+```bash
+uv run python -m fingerprints.recompute
+```
 
 ## What ships precomputed (and how it was made)
 
@@ -30,11 +34,13 @@ rebuild it all live (downloads every source dataset and re-runs the analyses;
 | ADMET cliff census (TDC + OpenADMET) | `data/admet_cliffs/` | `fingerprints.analyses.admet` |
 | kNN cliff analysis | `data/knn_cliffs/` | `fingerprints.analyses.knn` |
 | Feature-importance models | `data/importance/` | `fingerprints.analyses.importance` |
+| Binary/count/CheMeleon cross-validation + AqSolDB cliff recovery | `data/accumulation/` | `fingerprints.accumulation` |
 | 3D Boltz poses + PLIP interactions | `data/boltz_poses/` | `fingerprints.rebuild_poses` (GPU + `BOLTZ_API_KEY`) |
 
-The three analyses are re-runnable from the notebook. The Boltz poses need a GPU
-folding job and a Boltz API key, so they ship as data (`pip install '.[poses]'`
-to regenerate).
+The first four are rebuilt together by `python -m fingerprints.recompute`
+(each is independently runnable too, e.g. `python -m fingerprints.accumulation`).
+The Boltz poses need a GPU folding job and a Boltz API key, so they ship as
+data (`pip install '.[poses]'` to regenerate).
 
 ## Data sources
 

@@ -1,19 +1,24 @@
 """Recompute everything the notebook's precomputed data files contain.
 
 The notebook ships with all analysis outputs precomputed under ``data/`` (see
-``fingerprints.paths``) so it loads instantly. This module lets a curious user
-regenerate those files from scratch — downloading the source datasets
-(MoleculeACE from GitHub, TDC + OpenADMET ExpansionRx), fetching the CheMeleon
-weights, and re-running the three analyses.
+``fingerprints.paths``) so it loads instantly. This module lets a user
+regenerate those files from scratch with **one command**:
 
-It is intentionally *not* fast: the CheMeleon featurisation for the
-feature-importance models dominates and pushes the whole rebuild to roughly ten
-minutes on CPU. The 3D Boltz poses are **not** rebuilt here — those need a GPU
-folding job and a Boltz API key; see ``rebuild_poses`` for that separate, opt-in
-path.
+    uv run python -m fingerprints.recompute
 
-Each step is a small callable so the notebook can wrap the sequence in
-``mo.status.progress_bar`` and report human-readable progress.
+That downloads the source datasets (MoleculeACE from GitHub, TDC + OpenADMET
+ExpansionRx), fetches the CheMeleon weights, and re-runs every analysis in
+order. It is intentionally *not* fast — the accumulation module's 5x5
+cross-validation and the CheMeleon feature-importance models dominate and push
+the whole rebuild to roughly fifteen minutes on a modern CPU.
+
+The 3D Boltz poses are **not** rebuilt here — those need a GPU folding job and
+a paid Boltz API key; see ``fingerprints.rebuild_poses`` for that separate,
+opt-in path.
+
+Each step is a small callable so both the CLI and the notebook (which wraps
+the same sequence in ``mo.status.progress_bar``) can report human-readable
+progress.
 """
 
 from __future__ import annotations
@@ -33,6 +38,13 @@ class Step:
     run: Callable[[Callable[[str], None]], None]
 
 
+def _run_weights(report: Callable[[str], None]) -> None:
+    from fingerprints import chemeleon_fp as chf
+
+    report("downloading CheMeleon weights")
+    chf.ensure_weights()
+
+
 def _run_admet(report: Callable[[str], None]) -> None:
     admet.main(out_dir=paths.ADMET_CLIFFS.parent, on_step=lambda lbl: report(lbl))
 
@@ -45,18 +57,11 @@ def _run_importance(report: Callable[[str], None]) -> None:
     importance.main(out_dir=paths.IMPORTANCE.parent, on_step=lambda lbl: report(lbl))
 
 
-def _run_learned_cliffs(report: Callable[[str], None]) -> None:
-    from fingerprints import learned_cliffs
+def _run_accumulation(report: Callable[[str], None]) -> None:
+    from fingerprints import accumulation
 
-    report("training {ECFP, CheMeleon} × {linear, kNN, MLP} on binding endpoints")
-    learned_cliffs.main()
-
-
-def _run_weights(report: Callable[[str], None]) -> None:
-    from fingerprints import chemeleon_fp as chf
-
-    report("downloading CheMeleon weights")
-    chf.ensure_weights()
+    report("binary vs count vs CheMeleon on AqSolDB (5x5 scaffold CV, slow)")
+    accumulation.main()
 
 
 def steps() -> list[Step]:
@@ -66,7 +71,7 @@ def steps() -> list[Step]:
         Step("ADMET cliff census (TDC + OpenADMET)", _run_admet),
         Step("kNN cliff analysis", _run_knn),
         Step("Feature-importance models (CheMeleon — slow)", _run_importance),
-        Step("Learned-fingerprint cliff head-sweep", _run_learned_cliffs),
+        Step("Accumulation + AqSolDB cliff cross-validation (slow)", _run_accumulation),
     ]
 
 
@@ -76,7 +81,20 @@ def clear_outputs() -> None:
         paths.ADMET_CLIFFS,
         paths.KNN_CLIFFS,
         paths.IMPORTANCE,
-        paths.LEARNED_CLIFFS,
+        paths.ACCUMULATION,
     ):
         if p.exists():
             p.unlink()
+
+
+def main() -> None:
+    """Run every rebuild step from the command line, printing progress."""
+    clear_outputs()
+    for step in steps():
+        print(f"== {step.title} ==")
+        step.run(lambda msg: print(f"  {msg}"))
+    print("done.")
+
+
+if __name__ == "__main__":
+    main()

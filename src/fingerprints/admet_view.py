@@ -56,30 +56,11 @@ def smoothness(endpoint: str) -> dict:
     return _data()["endpoints"][endpoint]["smoothness"]
 
 
-def cliff_gallery(endpoint: str) -> list[dict]:
-    """The sharpest discovered cliffs: [{smiles_1,smiles_2,tanimoto,act_1,
-    act_2,gap}], sorted by property gap descending."""
-    return _data()["endpoints"][endpoint]["cliff_gallery"]
-
-
 def per_fp(endpoint: str) -> dict:
     """{fp_key: {label, n_similar_pairs, frac_flat, frac_cliff, gap_hist,
     top_cliff}} - the census run under each fingerprint's similarity, plus that
     fingerprint's own sharpest cliff."""
     return _data()["endpoints"][endpoint]["smoothness"].get("per_fp", {})
-
-
-def k_curve(endpoint: str) -> list[dict]:
-    """[{k, r2}, ...] held-out (scaffold-split) R^2 vs neighbourhood size."""
-    return _data()["endpoints"][endpoint]["k_curve"]
-
-
-def best_k(endpoint: str) -> dict:
-    return max(k_curve(endpoint), key=lambda d: d["r2"])
-
-
-def k_grid() -> list[int]:
-    return list(_data()["k_grid"]) if has_data() else []
 
 
 def sample_flat_pairs(endpoint: str, n: int, seed: int) -> list[dict]:

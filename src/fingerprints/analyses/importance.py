@@ -1,13 +1,16 @@
-"""Offline: train RandomForest regressors on Dopamine D3 and D4 activity for two
-fingerprints - ECFP (Morgan) and the pretrained CheMeleon embedding - and cache
-each model's per-bit feature importances (+ held-out R2/RMSE).
+"""Offline: train RandomForest regressors on activity for four binding
+endpoints (Dopamine D3/D4, mu/kappa-opioid), for two fingerprints - ECFP
+(Morgan) and the pretrained CheMeleon embedding - and cache each model's
+held-out R2/RMSE plus its predictions for the curated cliff molecules.
 
-The notebook reads these cached importances to:
-  * color the cliff-pair molecules by aggregated feature importance
-  * tint the fingerprint strips by per-bit importance
+The notebook reads this cache to show, for the cliff pair the reader is
+looking at, how good each fingerprint's trained model actually is (a
+measured-vs-predicted scatter over both the train and held-out scaffold-split
+test folds).
 
-Fingerprints are frozen inputs; only a small RF is trained. CheMeleon featurizing
-is the only heavy step, so we cache everything here and the notebook stays instant.
+Fingerprints are frozen inputs; only a small RF is trained. CheMeleon
+featurizing is the only heavy step, so we cache everything here and the
+notebook stays instant.
 
 Run:
   uv run python -m fingerprints.analyses.importance
@@ -130,7 +133,6 @@ def train_one(X, y, tr_mask, te_mask, seed=0):
     yp_te = rf.predict(X[te_mask])
     yp_tr = rf.predict(X[tr_mask])
     stats = {
-        "importances": rf.feature_importances_.astype(float).tolist(),
         "r2": r2(y[te_mask], yp_te),
         "rmse": rmse(y[te_mask], yp_te),
         "n_train": int(tr_mask.sum()),
@@ -148,9 +150,7 @@ def train_one(X, y, tr_mask, te_mask, seed=0):
 
 
 def _ensure_molace(dataset: str):
-    ds = molace.MolACEDataset(
-        name=dataset, target_label=dataset, target_class="", assay_type="Ki"
-    )
+    ds = molace.MolACEDataset(name=dataset, target_label=dataset)
     molace.download_molace(ds, CACHE_MOLACE / f"{dataset}.csv")
 
 
@@ -163,7 +163,7 @@ def main(out_dir=None, on_step=None):
     """
     out_dir = Path(out_dir) if out_dir is not None else OUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = {"n_bits": N_BITS, "rf_trees": RF_TREES, "endpoints": {}}
+    out = {"endpoints": {}}
     for label, dataset in ENDPOINTS:
         if on_step is not None:
             on_step(label)
@@ -221,10 +221,6 @@ def _predict_curated(rf, label: str, fp: str) -> dict[str, float]:
     X = ecfp_matrix(smis) if fp == "ecfp" else chemeleon_matrix(smis)
     preds = rf.predict(X)
     return {s: float(p) for s, p in zip(smis, preds)}
-
-
-def endpoint_labels() -> list[str]:
-    return [lbl for lbl, _ in ENDPOINTS]
 
 
 if __name__ == "__main__":

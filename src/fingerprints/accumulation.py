@@ -3,34 +3,42 @@
 The activity-cliff census argues that solubility-type cliffs arise because a
 fingerprint can't track a property that **accumulates over the whole molecule**
 (add one more -CH2- and solubility drops, but a binary fingerprint barely
-moves). This module turns that claim into a controlled, runs-live experiment
-across several fingerprint encodings.
+moves). This module turns that claim into a controlled experiment across
+several fingerprint encodings:
 
-Encodings + heads compared (all with a fairly-tuned linear head via RidgeCV,
-plus one deep MLP on the binary fingerprint to ask whether depth can rescue it):
-
-  * **binary Morgan** — the usual fingerprint. Binarising throws away *how many
-    times* each substructure occurs, i.e. exactly the count information an
-    accumulator needs.
-  * **count Morgan** — same bits, but each slot holds a count, so a linear head
-    can literally sum them.
-  * **binary Morgan + deep MLP** — can depth reconstruct the lost counts from
-    which bits co-occur?
+  * **binary Morgan** — the usual fingerprint. Binarising throws away *how
+    many times* each substructure occurs, i.e. exactly the count information
+    an accumulator needs.
+  * **count Morgan** — same bits, but each slot holds a count, so a linear
+    head can literally sum them.
   * **CheMeleon (learned)** — a pretrained message-passing fingerprint. It is
     *mean*-pooled over atoms, which is telling: a mean is size-*intensive*, so
-    even a learned representation is not automatically good at a size-extensive
-    raw count.
+    even a learned representation is not automatically good at a
+    size-extensive raw count.
 
-Target 1 is a **pure accumulator** we control exactly (heavy-atom count — by
-definition a sum over atoms). Target 2 is **real AqSolDB solubility**. The pure
-target isolates the mechanism; the real one shows how much carries over.
+Two targets: **heavy-atom count** (a *pure* accumulator we control exactly —
+by definition a sum over atoms) and **real AqSolDB solubility**.
 
-Everything trains live on a Bemis-Murcko scaffold split (no leakage). CheMeleon
-features are batched so the whole thing stays to a few seconds.
+Every number in the notebook comes from the same **5x5 repeated scaffold
+cross-validation** (:func:`cv_results`): the molecules are dealt into 5
+Bemis-Murcko-scaffold folds, each fold takes a turn as the held-out test set,
+and the whole thing repeats 5 times with a different shuffle, for 25 scores
+per model on identical splits. :func:`tukey` runs Tukey's HSD test over those
+25 scores to say which models are *statistically* best vs merely best-looking.
+
+A second analysis (:func:`cliff_summary`) reuses those same CV folds but keeps
+every molecule's *out-of-fold* prediction, so it can ask the sharper question:
+of the actual activity cliffs in AqSolDB (structurally similar pairs with a
+big solubility gap), how much of each cliff's gap does each model's prediction
+actually reproduce?
+
+Rebuild everything with ``python -m fingerprints.recompute`` (or, to touch
+only this module, ``python -m fingerprints.accumulation``).
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -48,25 +56,33 @@ RDLogger.DisableLog("rdApp.*")
 N_BITS = 2048
 _GEN = fpg.GetMorganGenerator(radius=2, fpSize=N_BITS)
 _SALT = SaltRemover()
-_MAX_N = 4000  # cap for a snappy live fit; sampled deterministically
-_ALPHAS = np.logspace(-2, 4, 13)  # RidgeCV search grid (headline section)
-_SURVEY_MAX_N = 2500  # smaller cap for the multi-fingerprint survey (speed)
-_SURVEY_ALPHAS = np.array([1.0, 10.0, 100.0, 1000.0])  # coarse but fair grid
+_MAX_N = 4000  # cap for a snappy fit; sampled deterministically
+_ALPHAS = np.logspace(-2, 4, 13)  # RidgeCV search grid
 
-# The classical RDKit fingerprints the survey compares, each in binary and
-# count form. All fold to N_BITS bits so the only thing that changes between
-# "binary" and "count" is whether a slot records presence or multiplicity.
-_SURVEY_GENERATORS = {
-    "Morgan (ECFP4)": fpg.GetMorganGenerator(radius=2, fpSize=N_BITS),
-    "RDKit topological": fpg.GetRDKitFPGenerator(fpSize=N_BITS),
-    "atom-pair": fpg.GetAtomPairGenerator(fpSize=N_BITS),
-    "topological torsion": fpg.GetTopologicalTorsionGenerator(fpSize=N_BITS),
-}
+CV_REPEATS = 5
+CV_FOLDS = 5
 
-# One binding endpoint (MoleculeACE / ChEMBL) to contrast against solubility:
-# does counting help or hurt when the property is molecular *recognition*
-# rather than an accumulated bulk quantity?
-_BINDING_ENDPOINT = ("Dopamine D3 (pKi)", "CHEMBL234_Ki")
+# (key, label, family) for each encoding/head compared throughout this module.
+# family drives the notebook's chart colour: red = binary, green = count,
+# purple = learned.
+CV_METHODS: tuple[tuple[str, str, str], ...] = (
+    ("binary_linear", "binary Morgan + linear", "binary"),
+    ("count_linear", "count Morgan + linear", "count"),
+    ("chemeleon_linear", "CheMeleon (learned) + linear", "learned"),
+)
+
+# Activity-cliff definition reused from the ADMET census: binary-Morgan
+# Tanimoto >= CLIFF_SIM is "structurally similar"; among similar pairs, a
+# solubility gap above CLIFF_GAP is a cliff and below FLAT_GAP is flat.
+CLIFF_SIM = 0.7
+CLIFF_GAP = 1.5
+FLAT_GAP = 0.5
+CLIFF_TARGET = "aqueous solubility"
+
+
+# ---------------------------------------------------------------------------
+# Dataset: AqSolDB, desalted + deduplicated by canonical parent SMILES.
+# ---------------------------------------------------------------------------
 
 
 def _parent(smiles: str) -> str | None:
@@ -130,58 +146,17 @@ def _chemeleon_matrix():
     return chf.fingerprint_matrix(mols)
 
 
-@lru_cache(maxsize=1)
-def _scaffold_split():
-    """Boolean (train, test) masks by Bemis-Murcko scaffold (no leakage)."""
-    mols, _smis, _ = _dataset()
-    groups: dict[str, list[int]] = {}
-    for i, m in enumerate(mols):
-        try:
-            sc = MurckoScaffold.MurckoScaffoldSmiles(mol=m)
-        except Exception:
-            sc = ""
-        groups.setdefault(sc or f"__none_{i}", []).append(i)
-    n = len(mols)
-    is_test = np.zeros(n, dtype=bool)
-    target = int(round(0.2 * n))
-    for grp in sorted(groups.values(), key=len):
-        if is_test.sum() >= target:
-            break
-        for i in grp:
-            is_test[i] = True
-    return ~is_test, is_test
-
-
-def _targets():
+def _targets() -> dict[str, np.ndarray]:
     """The two regression targets: a pure accumulator + real solubility."""
     mols, _, ys = _dataset()
     hac = np.array([m.GetNumHeavyAtoms() for m in mols], dtype=float)
-    return {
-        "heavy-atom count": {
-            "y": hac,
-            "kind": "pure accumulator (Σ over atoms)",
-            "unit": "atoms",
-        },
-        "aqueous solubility": {
-            "y": ys,
-            "kind": "real measured property",
-            "unit": "logS",
-        },
-    }
+    return {"heavy-atom count": hac, "aqueous solubility": ys}
 
 
 def _r2(yt: np.ndarray, yp: np.ndarray) -> float:
     ss_res = float(np.sum((yt - yp) ** 2))
     ss_tot = float(np.sum((yt - yt.mean()) ** 2))
     return 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan")
-
-
-@dataclass(frozen=True)
-class ModelScore:
-    key: str
-    label: str
-    family: str  # "binary" | "count" | "learned" — drives the chart colour
-    r2: float
 
 
 def target_labels() -> list[str]:
@@ -194,280 +169,9 @@ def n_molecules() -> int:
     return len(_dataset()[0])
 
 
-def target_meta(target: str) -> dict:
-    return {k: v for k, v in _targets()[target].items() if k != "y"}
-
-
-def _ridge_r2(x, y, tr, te, *, scale: bool) -> float:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-
-    steps = [StandardScaler()] if scale else []
-    steps.append(RidgeCV(alphas=_ALPHAS))
-    model = make_pipeline(*steps).fit(x[tr], y[tr])
-    return _r2(y[te], model.predict(x[te]))
-
-
-def _mlp_r2(x, y, tr, te, *, depth: int, width: int) -> float:
-    from sklearn.neural_network import MLPRegressor
-
-    model = MLPRegressor(
-        hidden_layer_sizes=(width,) * depth,
-        max_iter=300,
-        random_state=0,
-        early_stopping=True,
-    ).fit(x[tr], y[tr])
-    return _r2(y[te], model.predict(x[te]))
-
-
-@lru_cache(maxsize=8)
-def scores(target: str, depth: int = 4, width: int = 48) -> tuple[ModelScore, ...]:
-    """Held-out R² for every encoding/head on ``target``.
-
-    Reads the shipped cache under ``data/`` when present (instant); otherwise
-    fits live. Regenerate with ``python -m fingerprints.accumulation``.
-    """
-    if has_data():
-        return tuple(
-            ModelScore(**d) for d in _cache()["scores"].get(target, [])
-        )
-    return _scores_live(target, depth=depth, width=width)
-
-
-def _scores_live(
-    target: str, depth: int = 4, width: int = 48
-) -> tuple[ModelScore, ...]:
-    """Fit every encoding/head on ``target`` and return held-out R² for each.
-
-    Linear heads use RidgeCV (fair, auto-tuned regularisation); CheMeleon's
-    embedding is standardised first because a few of its dimensions have very
-    large scale. The binary-Morgan MLP is the "can depth rescue it?" probe.
-    """
-    xb, xc = _morgan_matrices()
-    tr, te = _scaffold_split()
-    y = _targets()[target]["y"]
-
-    out = [
-        ModelScore(
-            "binary_linear", "binary Morgan + linear", "binary",
-            _ridge_r2(xb, y, tr, te, scale=False),
-        ),
-        ModelScore(
-            "count_linear", "count Morgan + linear", "count",
-            _ridge_r2(xc, y, tr, te, scale=False),
-        ),
-        ModelScore(
-            "binary_mlp", f"binary Morgan + deep MLP ({width}×{depth})", "binary",
-            _mlp_r2(xb, y, tr, te, depth=depth, width=width),
-        ),
-    ]
-    try:
-        xche = _chemeleon_matrix()
-        out.append(
-            ModelScore(
-                "chemeleon_linear", "CheMeleon (learned) + linear", "learned",
-                _ridge_r2(xche, y, tr, te, scale=True),
-            )
-        )
-    except Exception:
-        # CheMeleon weights unavailable — skip it rather than fail the cell.
-        pass
-    return tuple(out)
-
-
 # ---------------------------------------------------------------------------
-# Follow-up survey: binary vs count across every classical RDKit fingerprint,
-# on a pure accumulator, on solubility, and on a binding endpoint.
+# Scaffold cross-validation: fold assignment + per-split model fits.
 # ---------------------------------------------------------------------------
-
-
-def _scaffold_masks(mols, test_frac: float = 0.2):
-    """Generic Bemis-Murcko scaffold split for an arbitrary molecule list."""
-    groups: dict[str, list[int]] = {}
-    for i, m in enumerate(mols):
-        try:
-            sc = MurckoScaffold.MurckoScaffoldSmiles(mol=m)
-        except Exception:
-            sc = ""
-        groups.setdefault(sc or f"__none_{i}", []).append(i)
-    n = len(mols)
-    is_test = np.zeros(n, dtype=bool)
-    target = int(round(test_frac * n))
-    for grp in sorted(groups.values(), key=len):
-        if is_test.sum() >= target:
-            break
-        for i in grp:
-            is_test[i] = True
-    return ~is_test, is_test
-
-
-@lru_cache(maxsize=1)
-def _binding_dataset():
-    """Load a MoleculeACE binding endpoint into (mols, pKi). Cached per session.
-
-    Downloads the CSV via the MoleculeACE loader if not already present, so the
-    survey is self-contained on a cold clone.
-    """
-    import polars as pl
-
-    from fingerprints.data import molace
-
-    _label, name = _BINDING_ENDPOINT
-    path = paths.CACHE_DIR / "molace" / f"{name}.csv"
-    if not path.exists():
-        ds = molace.MolACEDataset(
-            name=name, target_label=name, target_class="", assay_type="Ki"
-        )
-        molace.download_molace(ds, path)
-    df = pl.read_csv(path)
-    smis, ys, seen = [], [], set()
-    for row in df.iter_rows(named=True):
-        mol = Chem.MolFromSmiles(row["smiles"])
-        y = row["y [pEC50/pKi]"]
-        if mol is None or y is None:
-            continue
-        cs = Chem.MolToSmiles(mol)
-        if cs in seen:
-            continue
-        seen.add(cs)
-        smis.append(cs)
-        ys.append(float(y))
-    mols = [Chem.MolFromSmiles(s) for s in smis]
-    if len(mols) > _SURVEY_MAX_N:
-        rng = np.random.default_rng(0)
-        idx = rng.choice(len(mols), _SURVEY_MAX_N, replace=False)
-        mols = [mols[i] for i in idx]
-        ys = [ys[i] for i in idx]
-    return mols, np.asarray(ys, dtype=float)
-
-
-def _fp_matrix(mols, gen, *, count: bool) -> np.ndarray:
-    fn = gen.GetCountFingerprintAsNumPy if count else gen.GetFingerprintAsNumPy
-    return np.vstack([np.asarray(fn(m), dtype=np.float32) for m in mols])
-
-
-def _survey_ridge_r2(x, y, tr, te) -> float:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-
-    model = make_pipeline(
-        StandardScaler(with_mean=False), RidgeCV(alphas=_SURVEY_ALPHAS)
-    ).fit(x[tr], y[tr])
-    return _r2(y[te], model.predict(x[te]))
-
-
-@dataclass(frozen=True)
-class SurveyCell:
-    fingerprint: str
-    encoding: str  # "binary" or "count"
-    target: str
-    r2: float
-
-
-def survey_targets() -> list[str]:
-    """Column labels for the survey, in display order."""
-    return ["heavy-atom count", "aqueous solubility", _BINDING_ENDPOINT[0]]
-
-
-def survey_fingerprints() -> list[str]:
-    return list(_SURVEY_GENERATORS)
-
-
-def survey_n() -> dict[str, int]:
-    """Molecule counts backing each target family."""
-    if has_data():
-        return _cache()["survey_n"]
-    return {
-        "accumulator": len(_dataset()[0]),
-        "binding": len(_binding_dataset()[0]),
-    }
-
-
-@lru_cache(maxsize=1)
-def survey() -> tuple[SurveyCell, ...]:
-    """binary vs count for every classical fingerprint on all survey targets.
-
-    Reads the shipped cache under ``data/`` when present (instant); otherwise
-    fits live. Regenerate with ``python -m fingerprints.accumulation``.
-    """
-    if has_data():
-        return tuple(SurveyCell(**d) for d in _cache()["survey"])
-    return _survey_live()
-
-
-def _survey_live() -> tuple[SurveyCell, ...]:
-    """binary vs count for every classical fingerprint on all survey targets.
-
-    ADMET targets (heavy-atom count, solubility) share the AqSolDB molecule set
-    and its scaffold split; the binding target uses its own MoleculeACE set and
-    split. Every fit is a fairly-tuned RidgeCV on standardised features.
-    """
-    mols_s, _, ys_s = _dataset()
-    tr_s, te_s = _scaffold_split()
-    hac = np.array([m.GetNumHeavyAtoms() for m in mols_s], dtype=float)
-    mols_b, ys_b = _binding_dataset()
-    tr_b, te_b = _scaffold_masks(mols_b)
-    bind_label = _BINDING_ENDPOINT[0]
-
-    admet_targets = [("heavy-atom count", hac), ("aqueous solubility", ys_s)]
-    out: list[SurveyCell] = []
-    for fp_label, gen in _SURVEY_GENERATORS.items():
-        for encoding, count in [("binary", False), ("count", True)]:
-            xs = _fp_matrix(mols_s, gen, count=count)
-            for tgt, y in admet_targets:
-                out.append(
-                    SurveyCell(
-                        fp_label, encoding, tgt, _survey_ridge_r2(xs, y, tr_s, te_s)
-                    )
-                )
-            xb = _fp_matrix(mols_b, gen, count=count)
-            out.append(
-                SurveyCell(
-                    fp_label,
-                    encoding,
-                    bind_label,
-                    _survey_ridge_r2(xb, ys_b, tr_b, te_b),
-                )
-            )
-    return tuple(out)
-
-
-def count_minus_binary(target: str) -> list[tuple[str, float]]:
-    """Per-fingerprint count-minus-binary R2 delta on ``target``.
-
-    Positive means counting helps; negative means counting hurts.
-    """
-    by = {(c.fingerprint, c.encoding): c.r2 for c in survey() if c.target == target}
-    deltas = []
-    for fp in survey_fingerprints():
-        b = by.get((fp, "binary"))
-        c = by.get((fp, "count"))
-        if b is not None and c is not None:
-            deltas.append((fp, c - b))
-    return deltas
-
-
-# ---------------------------------------------------------------------------
-# Repeated scaffold cross-validation (5 repeats × 5 folds = 25 paired splits)
-# for the headline encodings, plus Tukey-HSD / ANOVA statistics over them.
-# A single train/test split gives one number per model with no error bar; the
-# 5×5 CV gives a *distribution* per model on identical splits, so we can ask
-# whether two encodings genuinely differ or just got a lucky split.
-# ---------------------------------------------------------------------------
-
-CV_REPEATS = 5
-CV_FOLDS = 5
-
-# (key, label, family) for each encoding/head in the CV comparison — same
-# models as the single-split headline.
-CV_METHODS: tuple[tuple[str, str, str], ...] = (
-    ("binary_linear", "binary Morgan + linear", "binary"),
-    ("count_linear", "count Morgan + linear", "count"),
-    ("binary_mlp", "binary Morgan + deep MLP (48×4)", "binary"),
-    ("chemeleon_linear", "CheMeleon (learned) + linear", "learned"),
-)
 
 
 def _scaffold_groups(mols) -> np.ndarray:
@@ -506,19 +210,9 @@ def cv_fold_ids(groups: np.ndarray, repeat: int, n_folds: int = CV_FOLDS) -> np.
     return np.array([lookup[g] for g in groups.tolist()], dtype=int)
 
 
-def _fit_split(xb, xc, xche, y, tr, te) -> dict[str, tuple[float, float]]:
-    """(R², RMSE) for every CV method on one train/test split."""
-    yt = y[te]
-    return {
-        k: (_r2(yt, p), float(np.sqrt(np.mean((yt - p) ** 2))))
-        for k, p in _predict_split(xb, xc, xche, y, tr, te).items()
-    }
-
-
 def _predict_split(xb, xc, xche, y, tr, te) -> dict[str, np.ndarray]:
-    """Held-out predictions on ``te`` for every CV method."""
+    """Held-out predictions on ``te`` for every :data:`CV_METHODS` model."""
     from sklearn.linear_model import RidgeCV
-    from sklearn.neural_network import MLPRegressor
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
@@ -527,17 +221,21 @@ def _predict_split(xb, xc, xche, y, tr, te) -> dict[str, np.ndarray]:
     out["binary_linear"] = m.predict(xb[te])
     m = RidgeCV(alphas=_ALPHAS).fit(xc[tr], y[tr])
     out["count_linear"] = m.predict(xc[te])
-    m = MLPRegressor(
-        hidden_layer_sizes=(48,) * 4, max_iter=300, random_state=0,
-        early_stopping=True,
-    ).fit(xb[tr], y[tr])
-    out["binary_mlp"] = m.predict(xb[te])
     if xche is not None:
         m = make_pipeline(StandardScaler(), RidgeCV(alphas=_ALPHAS)).fit(
             xche[tr], y[tr]
         )
         out["chemeleon_linear"] = m.predict(xche[te])
     return out
+
+
+def _fit_split(xb, xc, xche, y, tr, te) -> dict[str, tuple[float, float]]:
+    """(R², RMSE) for every CV method on one train/test split."""
+    yt = y[te]
+    return {
+        k: (_r2(yt, p), float(np.sqrt(np.mean((yt - p) ** 2))))
+        for k, p in _predict_split(xb, xc, xche, y, tr, te).items()
+    }
 
 
 def _cv_live(n_jobs: int = 6) -> dict:
@@ -552,7 +250,7 @@ def _cv_live(n_jobs: int = 6) -> dict:
         xche = None
     groups = _scaffold_groups(mols)
     folds = [cv_fold_ids(groups, r) for r in range(CV_REPEATS)]
-    targets = {t: v["y"] for t, v in _targets().items()}
+    targets = _targets()
 
     jobs = [
         (t, r, f)
@@ -572,10 +270,8 @@ def _cv_live(n_jobs: int = 6) -> dict:
         "methods": [
             {"key": k, "label": lbl, "family": fam} for k, lbl, fam in CV_METHODS
         ],
-        "targets": {},
+        "targets": {t: {"r2": {}, "rmse": {}} for t in targets},
     }
-    for t in targets:
-        payload["targets"][t] = {"r2": {}, "rmse": {}}
     for (t, _r, _f), res in zip(jobs, results):
         for key, (r2, rmse) in res.items():
             payload["targets"][t]["r2"].setdefault(key, []).append(r2)
@@ -599,11 +295,15 @@ def has_cv() -> bool:
     return has_data() and "cv" in _cache()
 
 
+# ---------------------------------------------------------------------------
+# Tukey-HSD statistics over the 5x5 CV scores.
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True)
 class TukeyRow:
     key: str
     label: str
-    family: str
     mean: float
     lo: float  # simultaneous-CI lower bound
     hi: float  # simultaneous-CI upper bound
@@ -654,7 +354,7 @@ def tukey(target: str, metric: str = "r2", alpha: float = 0.05) -> TukeyResult:
         )
         rows.append(
             TukeyRow(
-                key, meta[key]["label"], meta[key]["family"], float(means[i]),
+                key, meta[key]["label"], float(means[i]),
                 float(means[i] - hw), float(means[i] + hw), status, p,
             )
         )
@@ -677,15 +377,10 @@ def paired_p(target: str, key_a: str, key_b: str, metric: str = "r2") -> float:
 # Same 5×5 scaffold CV as above, but we keep the *out-of-fold* prediction for
 # every molecule in every repeat (each molecule is predicted exactly once per
 # repeat, by a model that never saw its scaffold). Cliff pairs are defined
-# exactly as in the ADMET census: binary-Morgan Tanimoto ≥ 0.7 and
-# |ΔlogS| > 1.5. Using one fixed pair definition means every model is judged
-# on the very same cliffs.
+# exactly as in the ADMET census: binary-Morgan Tanimoto >= CLIFF_SIM and
+# |ΔlogS| > CLIFF_GAP. Using one fixed pair definition means every model is
+# judged on the very same cliffs.
 # ---------------------------------------------------------------------------
-
-CLIFF_SIM = 0.7
-CLIFF_GAP = 1.5
-FLAT_GAP = 0.5
-CLIFF_TARGET = "aqueous solubility"
 
 
 def _tanimoto_matrix(xb: np.ndarray) -> np.ndarray:
@@ -701,7 +396,7 @@ def _tanimoto_matrix(xb: np.ndarray) -> np.ndarray:
 def _similar_pairs():
     """(i, j, tanimoto, |Δy|) for every structurally similar pair."""
     xb, _ = _morgan_matrices()
-    y = _targets()[CLIFF_TARGET]["y"]
+    y = _targets()[CLIFF_TARGET]
     t = _tanimoto_matrix(xb)
     i, j = np.triu_indices(len(y), 1)
     keep = t[i, j] >= CLIFF_SIM
@@ -719,7 +414,7 @@ def _cliff_oof_live(n_jobs: int = 6) -> dict:
         xche = _chemeleon_matrix()
     except Exception:
         xche = None
-    y = _targets()[CLIFF_TARGET]["y"]
+    y = _targets()[CLIFF_TARGET]
     groups = _scaffold_groups(mols)
     folds = [cv_fold_ids(groups, r) for r in range(CV_REPEATS)]
     jobs = [(r, f) for r in range(CV_REPEATS) for f in range(CV_FOLDS)]
@@ -769,7 +464,7 @@ def cliff_summary() -> dict:
     * ``rmse_cliff`` / ``rmse_rest`` — RMSE on molecules that sit in at least
       one cliff pair vs every other molecule;
     * ``pair_err_cliff`` / ``pair_err_flat`` — mean |Δpred − Δtrue| over cliff
-      pairs vs flat (|Δy| < 0.5) similar pairs.
+      pairs vs flat (|Δy| < FLAT_GAP) similar pairs.
     """
     d = _cliff_oof()
     y = np.asarray(d["y"])
@@ -785,9 +480,9 @@ def cliff_summary() -> dict:
     out: dict = {
         "n_cliff_pairs": int(cliff.sum()),
         "n_flat_pairs": int(flat.sum()),
-        "n_similar_pairs": int(len(gap)),
+        "n_similar_pairs": len(gap),
         "n_cliff_mols": int(in_cliff.sum()),
-        "n_mols": int(len(y)),
+        "n_mols": len(y),
         "methods": {},
     }
     for key, reps in d["oof"].items():
@@ -840,9 +535,9 @@ def cliff_paired_p(metric: str, key_a: str, key_b: str) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Disk cache: all live fits (scores over every target + the survey grid) are
-# precomputed and shipped under data/ so the notebook loads instantly. Rebuild
-# with ``python -m fingerprints.accumulation``.
+# Disk cache: both analyses above are precomputed and shipped under data/ so
+# the notebook loads instantly. Rebuild with ``python -m fingerprints.recompute``
+# (or just this module: ``python -m fingerprints.accumulation``).
 # ---------------------------------------------------------------------------
 
 
@@ -852,68 +547,22 @@ def has_data() -> bool:
 
 @lru_cache(maxsize=1)
 def _cache() -> dict:
-    import json
-
     return json.loads(paths.ACCUMULATION.read_text())
 
 
-def main_cv() -> None:
-    """(Re)compute only the 5×5 CV block and merge it into the JSON cache."""
-    import json
-
-    payload = json.loads(paths.ACCUMULATION.read_text()) if has_data() else {}
-    payload["cv"] = _cv_live()
-    payload["cliff_oof"] = _cliff_oof_live()
-    paths.ACCUMULATION.parent.mkdir(parents=True, exist_ok=True)
-    paths.ACCUMULATION.write_text(json.dumps(payload, indent=2))
-    _cache.cache_clear()
-    print(f"wrote 5x5 CV -> {paths.ACCUMULATION}")
-
-
-def main_cliffs() -> None:
-    """(Re)compute only the AqSolDB cliff out-of-fold block."""
-    import json
-
-    payload = json.loads(paths.ACCUMULATION.read_text()) if has_data() else {}
-    payload["cliff_oof"] = _cliff_oof_live()
-    paths.ACCUMULATION.parent.mkdir(parents=True, exist_ok=True)
-    paths.ACCUMULATION.write_text(json.dumps(payload))
-    print(f"wrote cliff OOF -> {paths.ACCUMULATION}")
-
-
 def main() -> None:
-    """Fit everything live and write the JSON cache read by :func:`scores`,
-    :func:`survey`, :func:`cv_results`, :func:`n_molecules`, and
-    :func:`survey_n`."""
-    import json
-    from dataclasses import asdict
-
+    """Fit everything live and write the JSON cache read by :func:`cv_results`,
+    :func:`cliff_summary`, and :func:`n_molecules`."""
     payload = {
         "n_molecules": len(_dataset()[0]),
-        "survey_n": {
-            "accumulator": len(_dataset()[0]),
-            "binding": len(_binding_dataset()[0]),
-        },
-        "scores": {
-            target: [asdict(s) for s in _scores_live(target)]
-            for target in target_labels()
-        },
-        "survey": [asdict(c) for c in _survey_live()],
         "cv": _cv_live(),
         "cliff_oof": _cliff_oof_live(),
     }
     paths.ACCUMULATION.parent.mkdir(parents=True, exist_ok=True)
-    paths.ACCUMULATION.write_text(json.dumps(payload, indent=2))
-    n = sum(len(v) for v in payload["scores"].values()) + len(payload["survey"])
-    print(f"wrote {n} fits -> {paths.ACCUMULATION}")
+    paths.ACCUMULATION.write_text(json.dumps(payload))
+    _cache.cache_clear()
+    print(f"wrote {paths.ACCUMULATION}")
 
 
 if __name__ == "__main__":
-    import sys
-
-    if "--cliffs-only" in sys.argv:
-        main_cliffs()
-    elif "--cv-only" in sys.argv:
-        main_cv()
-    else:
-        main()
+    main()

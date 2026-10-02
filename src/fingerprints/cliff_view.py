@@ -1,12 +1,12 @@
 """Rendering + scoring helpers for the context-dependent activity-cliff section.
 
-Ties together three existing pieces for a single curated cliff pair:
+Ties together three things for a single curated cliff pair:
 
-- ``mcs_diff_atoms`` (from clustering.cliffs) - which atoms changed between the
-  two molecules, so we can highlight the (small) difference;
-- the classical fingerprints - to score how *similar* each one thinks the pair
-  is;
-- the pair's two endpoint pKi values - to contrast "the fingerprint's guess"
+- the maximum common substructure (MCS) of the two molecules, to find and
+  highlight the (small) set of atoms that differ between them;
+- five classical binary fingerprints — to score how *similar* each one thinks
+  the pair is (Tanimoto, their native metric);
+- the pair's two endpoint pKi values — to contrast "the fingerprint's guess"
   against reality on each target.
 
 The point the section makes: a fingerprint sees only structure, so it assigns
@@ -16,24 +16,31 @@ endpoint where the pair is flat and wrong for the endpoint where it's a cliff.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from rdkit import Chem
+from rdkit import Chem, DataStructs
+from rdkit.Chem import MACCSkeys, rdFingerprintGenerator, rdFMCS
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from fingerprints.clustering.cliffs import mcs_diff_atoms
 from fingerprints.data.context_cliffs import ContextCliff
-from fingerprints.fingerprint_methods.rdkit_fps import all_classical
-from fingerprints.fingerprint_methods.similarity import pairwise_similarity
 
-# Reuse the same short id -> display label the rest of the repo uses.
+N_BITS = 2048
+
+# Five classical fingerprints, each binary, each scored by Tanimoto (their
+# native similarity metric). Built fresh per call — these are only ever
+# compared pairwise (2-3 molecules at a time), so there's no need for the
+# batched-matrix machinery a larger survey would want.
+_GENERATORS = {
+    "morgan": rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=N_BITS),
+    "atom_pair": rdFingerprintGenerator.GetAtomPairGenerator(fpSize=N_BITS),
+    "top_torsion": rdFingerprintGenerator.GetTopologicalTorsionGenerator(fpSize=N_BITS),
+    "rdkit_topo": rdFingerprintGenerator.GetRDKitFPGenerator(fpSize=N_BITS),
+}
+
 FP_LABELS: dict[str, str] = {
     "morgan": "Morgan",
     "rdkit_topo": "RDKit topological",
     "atom_pair": "Atom pair",
     "top_torsion": "Topological torsion",
     "maccs": "MACCS",
-    "avalon": "Avalon",
     "chemeleon": "CheMeleon (learned)",
 }
 FP_DISPLAY_ORDER: tuple[str, ...] = (
@@ -41,6 +48,57 @@ FP_DISPLAY_ORDER: tuple[str, ...] = (
 )
 
 _CHANGE_COLOR = (0.95, 0.45, 0.15)  # orange for the atoms that differ
+
+
+def _classical_fp(mol: Chem.Mol, key: str):
+    """One classical bit vector for ``mol`` under fingerprint ``key``."""
+    if key == "maccs":
+        return MACCSkeys.GenMACCSKeys(mol)
+    return _GENERATORS[key].GetFingerprint(mol)
+
+
+def _tanimoto(mol_a: Chem.Mol, mol_b: Chem.Mol, key: str) -> float:
+    return DataStructs.TanimotoSimilarity(
+        _classical_fp(mol_a, key), _classical_fp(mol_b, key)
+    )
+
+
+def mcs_diff_atoms(
+    mol_i: Chem.Mol, mol_j: Chem.Mol, timeout: int = 2
+) -> tuple[list[int], list[int]] | None:
+    """Atoms in each molecule that are NOT part of their maximum common
+    substructure (MCS) — i.e. the atoms that changed between the two.
+
+    Settings:
+        - atomCompare=CompareElements: distinct elements never match.
+        - bondCompare=CompareOrderExact: aromatic bonds match aromatic only,
+          single matches single, etc.
+        - completeRingsOnly=False: allow partial ring matches, so a ring
+          expansion/contraction is still mostly "the same" structure.
+        - ringMatchesRingOnly=True: a ring atom can only match a ring atom
+          (otherwise a long chain falsely matches a same-size ring).
+
+    Returns (diff_atoms_i, diff_atoms_j) as atom-index lists, or None if the
+    MCS search times out or fails to resolve a match.
+    """
+    res = rdFMCS.FindMCS(
+        [mol_i, mol_j],
+        timeout=timeout,
+        atomCompare=rdFMCS.AtomCompare.CompareElements,
+        bondCompare=rdFMCS.BondCompare.CompareOrderExact,
+        completeRingsOnly=False,
+        ringMatchesRingOnly=True,
+    )
+    if res.canceled:
+        return None
+    patt = res.queryMol
+    match_i = mol_i.GetSubstructMatch(patt)
+    match_j = mol_j.GetSubstructMatch(patt)
+    if not match_i or not match_j:
+        return None
+    diff_i = [a.GetIdx() for a in mol_i.GetAtoms() if a.GetIdx() not in match_i]
+    diff_j = [a.GetIdx() for a in mol_j.GetAtoms() if a.GetIdx() not in match_j]
+    return diff_i, diff_j
 
 
 def pair_mols(cliff: ContextCliff) -> tuple[Chem.Mol, Chem.Mol]:
@@ -76,51 +134,6 @@ def pair_svgs(
     return _draw(m1, diff1, width, height), _draw(m2, diff2, width, height)
 
 
-@dataclass(frozen=True)
-class FPScore:
-    key: str
-    label: str
-    similarity: float
-
-
-def fingerprint_scores(
-    cliff: ContextCliff, *, classical_only: bool = False
-) -> list[FPScore]:
-    """How similar does each fingerprint think this pair is?
-
-    Classical fingerprints use Tanimoto; the learned **CheMeleon** embedding is
-    dense/continuous, so it uses cosine similarity (its natural metric).
-    """
-    m1, m2 = pair_mols(cliff)
-    fps = all_classical([m1, m2])
-    out: list[FPScore] = []
-    for key in FP_DISPLAY_ORDER:
-        sim = float(pairwise_similarity(fps[key])[0, 1])
-        out.append(FPScore(key=key, label=FP_LABELS[key], similarity=sim))
-    if classical_only:
-        # A learned embedding (CheMeleon) has no principled similarity metric of
-        # its own — it is meant to feed a trained head, not a cosine. So for the
-        # honest "every fingerprint calls this pair similar" comparison we show
-        # only the classical fingerprints, whose native metric IS Tanimoto.
-        return out
-    # Append the learned fingerprint (cosine similarity of CheMeleon vectors).
-    try:
-        from fingerprints import chemeleon_fp as chf
-
-        v1 = chf.fingerprint(m1)
-        v2 = chf.fingerprint(m2)
-        denom = float((v1 @ v1) ** 0.5 * (v2 @ v2) ** 0.5)
-        cos = float(v1 @ v2) / denom if denom > 0 else 0.0
-        out.append(
-            FPScore(key="chemeleon", label=FP_LABELS["chemeleon"], similarity=cos)
-        )
-    except Exception:
-        # If the CheMeleon weights aren't available, just omit it - the
-        # classical bars still tell the story and nothing throws.
-        pass
-    return out
-
-
 def similarity_to_reference(
     smiles: list[str], *, include_learned: bool = True
 ) -> list[dict]:
@@ -131,14 +144,12 @@ def similarity_to_reference(
     (cosine). Used by the "what does similarity mean?" explainer.
     """
     mols = [Chem.MolFromSmiles(s) for s in smiles]
-    fps = all_classical(mols)
     rows: list[dict] = []
     for key in FP_DISPLAY_ORDER:
-        sim = pairwise_similarity(fps[key])[0]
         for j in range(1, len(mols)):
             rows.append(
                 {"fingerprint": FP_LABELS[key], "other_index": j,
-                 "similarity": float(sim[j]), "metric": "Tanimoto"}
+                 "similarity": _tanimoto(mols[0], mols[j], key), "metric": "Tanimoto"}
             )
     if include_learned:
         try:
@@ -157,36 +168,6 @@ def similarity_to_reference(
         except Exception:
             pass
     return rows
-
-
-def plif_similarity(pair_key: str, index: int, target: str) -> float | None:
-    """Tanimoto between the two ligands' interaction fingerprints in one pocket.
-
-    Unlike the structure fingerprints (which read only the 2D graph), the PLIF
-    is read off each ligand's *3D pose in the binding site*: every 'on' bit is a
-    specific contact (an H-bond to a residue, a π-stack, ...). We binarise each
-    pose's ``(residue, interaction-type) -> count`` fingerprint to presence and
-    take Tanimoto over the union of contacts.
-
-    Returns ``None`` when this cliff has no cached poses (so the caller can just
-    omit the bar rather than fabricate a number). Requires the four Boltz poses
-    produced offline by ``fingerprints.rebuild_poses``.
-    """
-    try:
-        from fingerprints import pose_view as pv
-
-        if not pv.has_poses(pair_key, index):
-            return None
-        poses = pv.load_all(pair_key, index)
-        fp1 = pv.interaction_fingerprint(poses[f"mol1_{target}"])
-        fp2 = pv.interaction_fingerprint(poses[f"mol2_{target}"])
-    except (KeyError, OSError):
-        return None
-    bits1, bits2 = set(fp1), set(fp2)
-    if not bits1 and not bits2:
-        return None
-    union = len(bits1 | bits2)
-    return (len(bits1 & bits2) / union) if union else 0.0
 
 
 def fold_change(delta_pki: float) -> str:

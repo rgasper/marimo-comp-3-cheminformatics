@@ -99,15 +99,6 @@ INTERACTION_TYPES: tuple[tuple[str, str], ...] = (
 )
 
 
-def interaction_counts(pose: Pose) -> dict[str, int]:
-    """Count of each interaction type for a pose (0 for types not present)."""
-    counts = {t: 0 for t, _ in INTERACTION_TYPES}
-    for rec in load_interactions(pose):
-        if rec["type"] in counts:
-            counts[rec["type"]] += 1
-    return counts
-
-
 def interaction_fingerprint(pose: Pose) -> dict[tuple[str, str], int]:
     """Encode a pose as an *interaction fingerprint*: (residue, type) -> count.
 
@@ -211,23 +202,6 @@ def pocket_residues(cif_text: str, cutoff: float = 4.0) -> list[tuple[str, str, 
     return sorted(
         ((rn, seq, d) for (rn, seq), d in contacts.items()), key=lambda x: x[2]
     )
-
-
-def _ligand_block(cif_text: str) -> tuple[list[int], list[str], list[tuple[float, float, float]]]:
-    """Ligand atoms from the CIF: (serials, elements, coords), in file order."""
-    idx, rows = _atom_site(cif_text)
-    gx = idx["group_PDB"]
-    ai, ts = idx["id"], idx["type_symbol"]
-    cx = (idx["Cartn_x"], idx["Cartn_y"], idx["Cartn_z"])
-    serials: list[int] = []
-    elements: list[str] = []
-    coords: list[tuple[float, float, float]] = []
-    for r in rows:
-        if r[gx] == "HETATM":
-            serials.append(int(r[ai]))
-            elements.append(r[ts])
-            coords.append((float(r[cx[0]]), float(r[cx[1]]), float(r[cx[2]])))
-    return serials, elements, coords
 
 
 def _ligand_atom_names(cif_text: str) -> list[str]:

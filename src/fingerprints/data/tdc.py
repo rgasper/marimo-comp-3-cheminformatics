@@ -31,10 +31,6 @@ class TDCDataset:
     Args:
         name: short id (used for filenames and titles)
         dataverse_id: numeric id at dataverse.harvard.edu
-        property_label: human-readable label for the y axis (e.g. "log S")
-        task_type: 'regression' or 'classification'
-        positive_label: short label to display for class 1 if classification
-        negative_label: short label to display for class 0 if classification
         mirror_url: optional stable mirror serving a ``SMILES,Y`` CSV, used when
             Dataverse blocks direct file access (e.g. Caco-2). Preferred over
             the dataverse download when set.
@@ -42,43 +38,19 @@ class TDCDataset:
 
     name: str
     dataverse_id: int
-    property_label: str
-    task_type: str  # "regression" | "classification"
-    positive_label: str | None = None
-    negative_label: str | None = None
     mirror_url: str | None = None
 
 
 # A small, curated set we'll use across the figures.
-LIPOPHILICITY = TDCDataset(
-    name="lipophilicity_astrazeneca",
-    dataverse_id=4259595,
-    property_label="lipophilicity (logD7.4)",
-    task_type="regression",
-)
-SOLUBILITY = TDCDataset(
-    name="solubility_aqsoldb",
-    dataverse_id=4259610,
-    property_label="aqueous solubility (logS)",
-    task_type="regression",
-)
+LIPOPHILICITY = TDCDataset(name="lipophilicity_astrazeneca", dataverse_id=4259595)
+SOLUBILITY = TDCDataset(name="solubility_aqsoldb", dataverse_id=4259610)
 CACO2 = TDCDataset(
     name="caco2_wang",
     dataverse_id=4259569,
-    property_label="Caco-2 permeability (log cm/s)",
-    task_type="regression",
     mirror_url=(
         "https://huggingface.co/datasets/scikit-fingerprints/TDC_caco2_wang/"
         "resolve/main/tdc_caco2_wang.csv"
     ),
-)
-BBB_MARTINS = TDCDataset(
-    name="bbb_martins",
-    dataverse_id=4259566,
-    property_label="BBB penetration",
-    task_type="classification",
-    positive_label="penetrates",
-    negative_label="excluded",
 )
 
 
