@@ -1,13 +1,8 @@
-# Molecular Fingerprints, Made Tangible
+# Exploring Molecular Fingerprints and Activity Cliffs
+*A molab Notebook Competition entry — OpenADMET × marimo*
 
-*A molab Notebook Competition entry — OpenADMET × marimo (co-hosted with Pat Walters).*
-
-An interactive marimo notebook that asks one question and chases it all the way
-down: **do activity cliffs come from the biology, or from the fingerprint
-encoding itself?** Along the way it takes apart MACCS, Morgan, the classical
-RDKit fingerprints, and a pretrained **neural** fingerprint (CheMeleon), then
-runs the same activity-cliff census on protein-binding data, on public ADMET
-benchmarks, and on **OpenADMET's own ExpansionRx challenge data**.
+An interactive marimo notebook that tries to help build intuition for how molecular fingerprints work and what their
+limitations are by exploring their mechanics and how they interact with activity cliffs in real chemical and biological datasets.
 
 ## Run it
 
@@ -60,12 +55,10 @@ data (`pip install '.[poses]'` to regenerate).
 All structure handling is RDKit. SMILES are validated; invalid input is handled
 gracefully. ADMET data is salt-stripped to the largest organic fragment and
 de-duplicated by canonical parent SMILES. Every train/test split is a
-**Bemis–Murcko scaffold split** so near-duplicate structures never straddle the
-split (no leakage).
+**Bemis–Murcko scaffold split** for consistency & simplicity.
 
 ## AI disclosure
 
-Built in a pairing session with an AI coding assistant, per the competition
-guidelines: it helped scaffold cells, the custom `ComplexViewer` anywidget, and
-the analyses, and drafted prose. Every chemical claim, data source, and result
+Built with an AI coding assistant: it helped scaffold cells, the custom `ComplexViewer` anywidget, and
+the analyses, and drafted some of the prose. Every chemical claim, data source, and result
 was reviewed by a human.
