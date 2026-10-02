@@ -175,9 +175,11 @@ def _(mo, recompute_button, setup_ready):
         total=len(_steps), title="Rebuilding analyses", remove_on_exit=False
     ) as _bar:
         for _step in _steps:
-            _bar.update(subtitle=_step.title)
+            _bar.update(increment=0, subtitle=_step.title)
             _step.run(
-                lambda msg, _t=_step.title: _bar.update(subtitle=f"{_t}: {msg}")
+                lambda msg, _t=_step.title: _bar.update(
+                    increment=0, subtitle=f"{_t}: {msg}"
+                )
             )
             _bar.update(increment=1)
     # Drop every in-process cache that read the old (shipped) files, so the
